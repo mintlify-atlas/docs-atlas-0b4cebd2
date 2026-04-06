@@ -1,0 +1,169 @@
+---
+title: "Objects and tags"
+description: "Learn how SilverBullet automatically indexes structured data from your pages into a queryable object database."
+---
+
+## What are objects?
+
+SilverBullet automatically maintains an **Object Index** extracted from all Markdown pages in your space. An _object_ is a structured, queryable unit of data — think of it as a row in a database table.
+
+Objects exist at different levels of granularity:
+
+| Object type | What it represents |
+|---|---|
+| `page` | A full Markdown page |
+| `task` | A `- [ ]` checkbox item |
+| `link` | A wiki link or Markdown link between pages |
+| `item` | A bullet or numbered list item |
+| `tag` | A hashtag used in your space |
+| `data` | Structured data in a fenced code block tagged with a hashtag |
+| `paragraph` | A paragraph of text |
+
+<Note>
+  Markdown is always the source of truth. The Object Index is derived entirely from your `.md` files and can be flushed and fully rebuilt at any time with the `Space: Reindex` command.
+</Note>
+
+## Tags
+
+Tags represent object _types_ — similar to tables in a relational database or classes in object-oriented programming. Every object has a primary `tag` that identifies its type, plus any number of additional user-assigned tags.
+
+You assign tags to objects using the hashtag syntax:
+
+```markdown
+#project
+
+- [ ] Ship the feature #high-priority
+
+* Meeting notes #meeting #q1
+```
+
+### Hashtag scope rules
+
+Where you place a hashtag determines what it tags:
+
+- A hashtag alone on a line (or with only other hashtags) tags the **page**
+- A hashtag inside a bullet item tags that **item**
+- A hashtag inside a task tags that **task**
+- A hashtag inside a paragraph tags that **paragraph**
+- A fenced code block with a hashtag as its language tag creates a **data object**
+
+### Built-in tags
+
+SilverBullet ships with built-in tags like `page`, `task`, `link`, `item`, `paragraph`, and `data`. Custom tags are created implicitly the first time you use them.
+
+## Standard object attributes
+
+Every object has a set of predefined attributes:
+
+| Attribute | Description |
+|---|---|
+| `ref` | A globally unique identifier, often a pointer to the page and position where the object is defined. For pages this is the page name; for tasks it is `page@position`. |
+| `tag` | The primary type of the object (e.g. `page`, `task`, `link`). |
+| `tags` | Any additional tags explicitly assigned to the object. |
+| `itags` | Implicit/inherited tags: includes `tag`, `tags`, plus any tags assigned to the containing page. |
+
+## Frontmatter attributes
+
+Frontmatter is the most common way to attach metadata to a page. You write it as a YAML block at the very top of a page, enclosed in `---`:
+
+```yaml
+---
+status: active
+priority: high
+tags: project
+---
+```
+
+All frontmatter keys become queryable attributes on the `page` object. SilverBullet treats a few keys specially:
+
+| Key | Effect |
+|---|---|
+| `tags` | Assigns one or more tags to the page |
+| `aliases` | Alternative names for navigation and linking |
+| `displayName` | Override how the page name appears in certain UI contexts |
+
+<Warning>
+  Do not set the `name` attribute in frontmatter — SilverBullet uses it internally for page names and will ignore your value.
+</Warning>
+
+You can use dot notation in frontmatter as a shorthand for nested keys:
+
+```yaml
+---
+project.status: active
+project.deadline: 2024-12-31
+---
+```
+
+This expands internally to a nested `project` object with `status` and `deadline` keys.
+
+## Inline attributes
+
+You can attach attributes directly to list items, tasks, and paragraphs using bracket syntax:
+
+```markdown
+* Meeting notes [date: 2024-03-15][attendees: alice, bob]
+* [ ] Finish report [due: 2024-03-20][priority: 2]
+```
+
+For Obsidian/LogSeq compatibility, double-colon syntax is also supported: `[attribute:: value]`.
+
+Values are parsed as YAML, so strings, numbers, and arrays all work:
+
+```markdown
+* Research spike [estimate: 3][labels: [backend, api]]
+```
+
+## Querying objects
+
+Objects in the index can be queried using [Space Lua's integrated query syntax](/space-lua/lua-integrated-query). Query results can be rendered inline in any page using `${...}` expressions:
+
+```lua
+${query[[
+  from index.tag "page"
+  where tags ~= nil
+  order by priority desc
+  limit 10
+]]}
+```
+
+Query all open tasks tagged `#project`:
+
+```lua
+${query[[
+  from index.tag "task"
+  where not _.done and _.itags ~= nil
+  order by _.ref
+]]}
+```
+
+Query pages by a frontmatter attribute:
+
+```lua
+${query[[
+  from index.tag "page"
+  where _.status == "active"
+  order by _.priority desc
+]]}
+```
+
+## Schemas
+
+You can optionally define a Schema to restrict which attributes are valid for a given tag. This adds validation and enables richer auto-complete when editing pages.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Space and pages" icon="folder" href="/concepts/space-and-pages">
+    Understand the structure of a SilverBullet space.
+  </Card>
+  <Card title="Markdown" icon="file-text" href="/concepts/markdown">
+    Learn about SilverBullet's Markdown extensions.
+  </Card>
+  <Card title="Space Lua query" icon="code" href="/space-lua/lua-integrated-query">
+    Write queries to surface data from your space.
+  </Card>
+  <Card title="Tasks and outlines" icon="list-checks" href="/concepts/tasks-and-outlines">
+    Track work and organize content hierarchically.
+  </Card>
+</CardGroup>

@@ -1,0 +1,144 @@
+---
+title: "CLI"
+description: "The silverbullet-cli companion tool for interacting with a running SilverBullet instance from your terminal."
+---
+
+<Note>
+  The SilverBullet CLI is experimental. It requires the [Runtime API](/api/http#runtime-api), which spins up a headless Chromium instance on first use.
+</Note>
+
+`silverbullet-cli` is a companion command-line tool that connects to a running SilverBullet server and lets you evaluate Lua expressions, run scripts, open a REPL, tail logs, and capture screenshots — without opening a browser.
+
+## Installation
+
+Download the `silverbullet-cli` binary for your platform from the [GitHub releases page](https://github.com/silverbulletmd/silverbullet/releases) (or the [edge build](https://github.com/silverbulletmd/silverbullet/releases/tag/edge)).
+
+Once installed, you can self-update it:
+
+```bash
+silverbullet-cli upgrade        # latest stable release
+silverbullet-cli upgrade-edge   # latest edge build (main branch)
+```
+
+## Configuring spaces
+
+Before running commands, connect the CLI to your SilverBullet instance. Configuration is stored in `~/.config/silverbullet/config.json` (respects `XDG_CONFIG_HOME`).
+
+```bash
+silverbullet-cli space add
+```
+
+The wizard prompts for:
+1. A **name** for the space (alphanumeric and hyphens)
+2. The **URL** of your SilverBullet server
+3. An **authentication method**: bearer token, username/password, or none
+
+```bash
+silverbullet-cli space list          # list configured spaces
+silverbullet-cli space remove <name> # remove a space
+```
+
+## Global flags
+
+These flags are available on all commands that connect to a space:
+
+| Flag | Description |
+|---|---|
+| `-s, --space <name>` | Select a space by name (auto-selected if only one is configured) |
+| `--url <url>` | Connect directly to a URL, bypassing space config |
+| `--token <token>` | Authentication token (use with `--url`) |
+| `-t, --timeout <seconds>` | Request timeout in seconds (default: 30) |
+
+## Commands
+
+<Note>
+  The first command invocation may take several seconds while the Runtime API starts a headless Chromium instance and performs an initial space index.
+</Note>
+
+### `lua <expression>`
+
+Evaluate a single Lua expression and print the result.
+
+```bash
+silverbullet-cli lua "1 + 1"
+# => 2
+
+silverbullet-cli lua "editor.getCurrentPage()"
+# => "index"
+
+# Query recent pages
+silverbullet-cli lua 'query[[from tags.page order by lastModified desc limit 5 select name]]'
+```
+
+### `lua-script [file]`
+
+Execute a multi-line Lua script from a file or stdin.
+
+```bash
+silverbullet-cli lua-script myscript.lua
+
+# Pipe from stdin
+echo 'return query[[from tags.task where not done select ref, name]]' | silverbullet-cli lua-script
+```
+
+### `repl`
+
+Open an interactive Lua REPL with multi-line input support.
+
+```bash
+silverbullet-cli repl
+```
+
+Special REPL commands:
+
+| Command | Description |
+|---|---|
+| `.exit` or `Ctrl-D` | Exit the REPL |
+| `.script` / `.end` | Enter/exit multi-line script mode |
+| `.timeout <seconds>` | Change the request timeout |
+
+The REPL detects incomplete expressions (unclosed brackets, blocks) and waits for more input automatically.
+
+### `logs`
+
+Show console logs from the headless browser client.
+
+```bash
+silverbullet-cli logs              # last 100 entries
+silverbullet-cli logs -n 20        # last 20 entries
+silverbullet-cli logs -f           # follow (tail) mode
+```
+
+| Flag | Description |
+|---|---|
+| `-n, --lines <int>` | Number of log entries to show (default: 100) |
+| `-f, --follow` | Continuously stream new log entries |
+
+### `screenshot [file]`
+
+Capture a PNG screenshot of the headless client viewport.
+
+```bash
+silverbullet-cli screenshot page.png   # save to file
+silverbullet-cli screenshot > page.png # pipe to stdout
+```
+
+### `version`
+
+Print the installed CLI version.
+
+### `upgrade` / `upgrade-edge`
+
+Self-update to the latest stable or edge release.
+
+## Authentication
+
+The CLI supports three authentication methods, configured per space during `space add`:
+
+| Method | How it works |
+|---|---|
+| **Token** | Sends `Authorization: Bearer <token>`. Use with `SB_AUTH_TOKEN` on the server. |
+| **Password** | Authenticates via `POST /.auth` (username + password), then uses the session cookie. Use with `SB_USER` on the server. |
+| **None** | No authentication. For local or trusted-network setups only. |
+
+Credentials are stored encrypted at rest using AES-256-GCM with PBKDF2 key derivation.

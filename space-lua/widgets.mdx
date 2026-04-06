@@ -1,0 +1,144 @@
+---
+title: "Widgets"
+description: "Create custom rendered UI components using Space Lua and embed them inline in your pages."
+---
+
+The `${expression}` syntax in SilverBullet doesn't just render strings — if the expression returns a value created by `widget.new`, it renders as a rich UI component. Widgets can display markdown, raw HTML, interactive buttons, and embedded media.
+
+## Basic widgets
+
+Use `widget.new` with these keys:
+
+| Key | Type | Description |
+|---|---|---|
+| `markdown` | string | Renders the value as markdown |
+| `html` | string \| DOM element | Renders an HTML string or DOM element |
+| `display` | `"inline"` \| `"block"` | Layout mode (defaults to `"inline"`) |
+| `cssClasses` | string[] | CSS class names to add to the widget container |
+
+## Convenience functions
+
+For the most common cases, use these shortcuts:
+
+| Function | Description |
+|---|---|
+| `widget.markdown(md)` | Inline markdown widget |
+| `widget.markdownBlock(md)` | Block-level markdown widget |
+| `widget.html(html)` | Inline HTML widget |
+| `widget.htmlBlock(html)` | Block-level HTML widget |
+
+## Markdown widgets
+
+```lua
+-- Inline bold text
+${widget.markdown("**Important:** read this")}
+
+-- Block-level content (lists, tables, headings)
+${widget.markdownBlock("## Summary\n* Item one\n* Item two")}
+```
+
+## HTML and DOM widgets
+
+For full control over rendered output, combine `widget.html` with the DOM builder API:
+
+```lua
+-- space-lua
+function marquee(text)
+  return widget.html(dom.marquee {
+    class = "my-marquee",
+    onclick = function()
+      editor.flashNotification("You clicked me!")
+    end,
+    text
+  })
+end
+```
+
+Apply styling with Space Style:
+
+```css
+/* space-style */
+.my-marquee {
+  color: purple;
+  font-weight: bold;
+}
+```
+
+Use in any page: `${marquee("Hello world!")}`
+
+## Built-in widgets
+
+The standard library provides ready-to-use widgets in the `widgets` table.
+
+### Buttons
+
+```lua
+-- Simple button with a callback
+${widgets.button("Say hello", function()
+  editor.flashNotification("Hello!")
+end)}
+
+-- Button that triggers a named command
+${widgets.commandButton("System: Reload")}
+
+-- Button with custom label
+${widgets.commandButton("Reload now", "System: Reload")}
+```
+
+### Sub-pages
+
+```lua
+-- List sub-pages of the current page
+${widgets.subPages()}
+
+-- List sub-pages of a specific page
+${widgets.subPages("Projects")}
+```
+
+### Embed widgets
+
+```lua
+-- Embed a YouTube video
+${embed.youtube("https://www.youtube.com/watch?v=mik1EbTshX4")}
+
+-- Embed a PeerTube video
+${embed.peertube("https://example.com/videos/watch/abc123")}
+```
+
+## Automatic page widgets
+
+Several widgets appear automatically on every page and can be configured in your `CONFIG` page:
+
+```lua
+-- Disable table of contents
+config.set("std.widgets.toc.enabled", false)
+
+-- Only show TOC when there are 5+ headers
+config.set("std.widgets.toc.minHeaders", 5)
+
+-- Disable linked mentions at the bottom of pages
+config.set("std.widgets.linkedMentions.enabled", false)
+
+-- Disable linked tasks at the top of pages
+config.set("std.widgets.linkedTasks.enabled", false)
+```
+
+## Custom top/bottom widgets
+
+You can inject your own widgets into every page's top or bottom using event listeners:
+
+```lua
+-- space-lua
+event.listen {
+  name = "hooks:renderTopWidgets",
+  run = function(e)
+    return widget.new {
+      markdown = "**Tip of the day:** " .. getDailyTip()
+    }
+  end
+}
+```
+
+<Tip>
+  Use `display = "block"` for widgets that contain block-level content like lists, tables, or headings. Inline display works for short snippets of text or buttons.
+</Tip>

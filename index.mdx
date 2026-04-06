@@ -1,97 +1,82 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "SilverBullet Documentation"
+description: "A self-hosted, browser-based personal knowledge management platform built on Markdown and powered by Lua scripting."
 ---
 
-## Setting up
+SilverBullet is a programmable, private, self-hosted personal knowledge management platform. You write in Markdown, organize with bi-directional links and tags, and extend everything with Lua scripting — all running in your browser with no third-party services.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get from zero to a running SilverBullet instance in five minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Installation" icon="server" href="/install">
+    Deploy via Docker, single binary, or cloud hosting.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Concepts" icon="book" href="/concepts/space-and-pages">
+    Understand spaces, pages, objects, tags, and how SilverBullet organizes your knowledge.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Write Lua scripts that generate dynamic content, build widgets, and automate your space.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What makes SilverBullet different
 
-Everything you need to create world-class documentation.
+SilverBullet is more than a Markdown editor. Your notes become a queryable database — every page, task, tag, and custom attribute is automatically indexed and searchable using the built-in Lua Integrated Query language.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="Live queries" icon="database" href="/space-lua/lua-integrated-query">
+    Query your notes like a database. Filter, sort, and render results inline.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Templates" icon="file-code" href="/customization/templates">
+    Build reusable page templates and slash commands for structured workflows.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Libraries" icon="boxes-stacked" href="/customization/libraries">
+    Install community libraries for journaling, task management, and more.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Plugs" icon="plug" href="/plugs/overview">
+    Extend SilverBullet with TypeScript-based plugs that run in sandboxed web workers.
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Explore by workflow
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Daily journaling" icon="calendar" href="/guides/journaling">
+    Set up a daily journal with templates and automatic date-based pages.
+  </Card>
+  <Card title="Task management" icon="list-check" href="/guides/task-management">
+    Track tasks across pages with live cross-space aggregation.
+  </Card>
+  <Card title="Knowledge base" icon="brain" href="/guides/knowledge-base">
+    Build a personal wiki with bi-directional links and structured metadata.
+  </Card>
+  <Card title="People notes" icon="users" href="/guides/people-notes">
+    Keep track of contacts, meetings, and conversations in one place.
+  </Card>
+</CardGroup>
+
+## Deploy it yourself
+
+SilverBullet is fully self-hosted. Your data stays on your server — or your laptop.
+
+<Steps>
+  <Step title="Run with Docker">
+    ```bash
+    docker run -p 3000:3000 -v ./space:/space ghcr.io/silverbulletmd/silverbullet
+    ```
+  </Step>
+  <Step title="Open in your browser">
+    Navigate to `http://localhost:3000`. SilverBullet loads as a Progressive Web App — you can install it to your dock or home screen.
+  </Step>
+  <Step title="Create your first page">
+    Press `Ctrl-k` (or `Cmd-k` on Mac) to open the page picker, type a name, and start writing in Markdown.
+  </Step>
+  <Step title="Extend with Lua">
+    Add a `space-lua` code block to any page to define functions, commands, and widgets that are active across your entire space.
+  </Step>
+</Steps>
+
+<Note>
+  SilverBullet requires a case-sensitive file system. Linux is the recommended server OS. See the [installation guide](/install) for details on macOS and Windows.
+</Note>

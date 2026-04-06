@@ -1,0 +1,428 @@
+---
+title: "Space API"
+description: "Read, write, list, and delete pages, documents, and files in your SilverBullet space."
+---
+
+The `space` object is a global available in all Space Lua scripts. It provides functions for interacting with pages (Markdown files ending in `.md`), documents (all other files), and the lower-level file abstraction that covers both.
+
+<Note>
+  These are syscall APIs — direct calls into SilverBullet's runtime. They work in both the browser client and the [Runtime API](/api/http#runtime-api).
+</Note>
+
+---
+
+## Page operations
+
+Pages are Markdown files stored in your space. All page names are path-relative to the space root, without the `.md` extension.
+
+### space.listPages()
+
+Returns a list of all pages (`.md` files) in the space.
+
+```lua
+local pages = space.listPages()
+for page in each(pages) do
+  print(page.name, page.lastModified)
+end
+```
+
+<ResponseField name="return" type="table[]">
+  Array of page metadata objects, each with:
+  <Expandable title="fields">
+    <ResponseField name="name" type="string">
+      Page name (path relative to space root, without `.md` extension).
+    </ResponseField>
+    <ResponseField name="lastModified" type="number">
+      Unix timestamp in milliseconds of the last modification.
+    </ResponseField>
+    <ResponseField name="created" type="number">
+      Unix timestamp in milliseconds when the page was created.
+    </ResponseField>
+    <ResponseField name="size" type="number">
+      File size in bytes.
+    </ResponseField>
+    <ResponseField name="perm" type="string">
+      Permission — `"rw"` or `"ro"`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### space.readPage(name)
+
+Reads the content of a page and returns it as a string.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension. For example, `"index"` or `"Projects/Q1"`.
+</ParamField>
+
+```lua
+local content = space.readPage("welcome")
+print(content)
+```
+
+<ResponseField name="return" type="string">
+  Full Markdown content of the page.
+</ResponseField>
+
+---
+
+### space.readPageWithMeta(name)
+
+Reads a page and returns both its content and metadata in a single call.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension.
+</ParamField>
+
+```lua
+local result = space.readPageWithMeta("welcome")
+print(result.text)
+print(result.meta.lastModified)
+```
+
+<ResponseField name="return" type="table">
+  <Expandable title="fields">
+    <ResponseField name="text" type="string">
+      Full Markdown content of the page.
+    </ResponseField>
+    <ResponseField name="meta" type="table">
+      Page metadata object (same structure as returned by `space.listPages()`).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### space.writePage(name, text)
+
+Writes text content to a page. Creates the page if it does not exist; overwrites it if it does.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension.
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Full Markdown content to write to the page.
+</ParamField>
+
+```lua
+local meta = space.writePage("notes", "# My Notes\n\nSome content here.")
+print("Saved at: " .. meta.lastModified)
+```
+
+<ResponseField name="return" type="table">
+  Page metadata object for the written page, including the updated `lastModified` timestamp.
+</ResponseField>
+
+---
+
+### space.deletePage(name)
+
+Deletes a page from the space.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension.
+</ParamField>
+
+```lua
+space.deletePage("old-notes")
+```
+
+---
+
+### space.pageExists(name)
+
+Returns `true` if a page with the given name exists in the space.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension.
+</ParamField>
+
+```lua
+if space.pageExists("Hello") then
+  print("Page exists!")
+else
+  print("Page not found")
+end
+```
+
+<ResponseField name="return" type="boolean">
+  `true` if the page exists, `false` otherwise.
+</ResponseField>
+
+---
+
+### space.getPageMeta(name)
+
+Returns metadata for a specific page without reading its content.
+
+<ParamField path="name" type="string" required>
+  Page name, relative to the space root and without the `.md` extension.
+</ParamField>
+
+```lua
+local meta = space.getPageMeta("welcome")
+print(meta.name, meta.lastModified)
+```
+
+<ResponseField name="return" type="table">
+  Page metadata object (same structure as items in `space.listPages()`).
+</ResponseField>
+
+---
+
+### space.readRef(ref)
+
+Reads a reference string and returns the matched content as a plain string. Supports three reference formats:
+
+- `"page"` — reads the entire page
+- `"page#header"` — reads the section under the specified header
+- `"page@pos"` — reads the item or task at the given character position and its children
+
+<ParamField path="ref" type="string" required>
+  Reference string. Accepts a page name, a header ref (`page#Header`), or a position ref (`page@42`).
+</ParamField>
+
+```lua
+-- Read a specific section
+local section = space.readRef("MyPage#Introduction")
+print(section)
+
+-- Read a task and its children
+local task = space.readRef("MyPage@120")
+print(task)
+```
+
+<ResponseField name="return" type="string">
+  Text content of the referenced location.
+</ResponseField>
+
+---
+
+## Document operations
+
+Documents are non-Markdown files stored in your space, such as images, PDFs, or binary data.
+
+### space.listDocuments()
+
+Returns a list of all documents (non-`.md` files) in the space.
+
+```lua
+local docs = space.listDocuments()
+for doc in each(docs) do
+  print(doc.name, doc.size)
+end
+```
+
+---
+
+### space.readDocument(name)
+
+Reads the binary content of a document.
+
+<ParamField path="name" type="string" required>
+  Path to the document file, relative to the space root, including the file extension.
+</ParamField>
+
+```lua
+local data = space.readDocument("images/logo.png")
+print("Size: " .. #data .. " bytes")
+```
+
+<ResponseField name="return" type="string">
+  Raw binary content of the document.
+</ResponseField>
+
+---
+
+### space.writeDocument(name, data)
+
+Writes binary data to a document. Creates the file if it does not exist.
+
+<ParamField path="name" type="string" required>
+  Path to the document file, relative to the space root, including the file extension.
+</ParamField>
+
+<ParamField path="data" type="string" required>
+  Binary data to write.
+</ParamField>
+
+```lua
+local binaryData = string.char(72, 69, 76, 76, 79)  -- "HELLO" in binary
+local meta = space.writeDocument("test.bin", binaryData)
+print("Saved with size: " .. meta.size)
+```
+
+<ResponseField name="return" type="table">
+  Document metadata including `name`, `size`, `lastModified`, and `perm`.
+</ResponseField>
+
+---
+
+### space.deleteDocument(name)
+
+Deletes a document from the space.
+
+<ParamField path="name" type="string" required>
+  Path to the document file, relative to the space root.
+</ParamField>
+
+```lua
+space.deleteDocument("old-image.png")
+```
+
+---
+
+### space.getDocumentMeta(name)
+
+Returns metadata for a specific document without reading its content.
+
+<ParamField path="name" type="string" required>
+  Path to the document file, relative to the space root.
+</ParamField>
+
+```lua
+local meta = space.getDocumentMeta("report.pdf")
+print(meta.size)
+```
+
+---
+
+## File operations
+
+The file API is a lower-level abstraction that covers both pages and documents. Use it when you need uniform access to all files in the space regardless of type.
+
+### space.listFiles()
+
+Returns metadata for every file in the space — pages, documents, and plugs.
+
+```lua
+local files = space.listFiles()
+for _, file in ipairs(files) do
+  print(file.name, file.size)
+end
+```
+
+---
+
+### space.readFile(name)
+
+Reads the raw binary content of any file in the space.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension (e.g., `"index.md"` or `"images/photo.png"`).
+</ParamField>
+
+```lua
+local content = space.readFile("document.txt")
+print("File size: " .. #content .. " bytes")
+```
+
+<ResponseField name="return" type="string">
+  Raw binary content of the file.
+</ResponseField>
+
+---
+
+### space.readFileWithMeta(name)
+
+Reads a file and returns both its binary content and metadata.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension.
+</ParamField>
+
+```lua
+local result = space.readFileWithMeta("config.json")
+print(result.meta.size)
+print(result.data)
+```
+
+<ResponseField name="return" type="table">
+  <Expandable title="fields">
+    <ResponseField name="data" type="string">
+      Raw binary content of the file.
+    </ResponseField>
+    <ResponseField name="meta" type="table">
+      File metadata object.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### space.writeFile(name, data)
+
+Writes binary data to a file.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension.
+</ParamField>
+
+<ParamField path="data" type="string" required>
+  Binary data to write.
+</ParamField>
+
+```lua
+local meta = space.writeFile("greeting.txt", "Hello, World!")
+print("Written with size: " .. meta.size)
+```
+
+<ResponseField name="return" type="table">
+  File metadata object for the written file.
+</ResponseField>
+
+---
+
+### space.deleteFile(name)
+
+Deletes a file from the space.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension.
+</ParamField>
+
+```lua
+space.deleteFile("old-document.txt")
+```
+
+---
+
+### space.fileExists(name)
+
+Returns `true` if a file at the given path exists in the space.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension.
+</ParamField>
+
+```lua
+if space.fileExists("config.json") then
+  print("Config file exists!")
+end
+```
+
+<ResponseField name="return" type="boolean">
+  `true` if the file exists, `false` otherwise.
+</ResponseField>
+
+---
+
+### space.getFileMeta(name)
+
+Returns metadata for a specific file without reading its content.
+
+<ParamField path="name" type="string" required>
+  Full path to the file, relative to the space root, including extension.
+</ParamField>
+
+```lua
+local meta = space.getFileMeta("document.txt")
+print(meta.name, meta.size, meta.lastModified)
+```
+
+<ResponseField name="return" type="table">
+  File metadata object with `name`, `size`, `lastModified`, `created`, and `perm`.
+</ResponseField>

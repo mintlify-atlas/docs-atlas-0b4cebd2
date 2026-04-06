@@ -1,0 +1,188 @@
+---
+title: "Configuration"
+description: "All environment variables and CLI flags for configuring a SilverBullet deployment, including authentication, networking, file system, and sync options."
+---
+
+SilverBullet is configured through environment variables (preferred for Docker and server deployments) or CLI flags passed directly to the binary. Environment variables take the form `SB_*`. Most options have sensible defaults and only need changing for specific setups.
+
+## Authentication
+
+<ParamField path="SB_USER" type="string">
+  Enables single-user authentication. Set to `username:password`. When this is set, SilverBullet shows a login page on first access.
+
+  ```bash
+  SB_USER=pete:mysecretpassword
+  ```
+</ParamField>
+
+<ParamField path="SB_AUTH_TOKEN" type="string">
+  A bearer token for API authentication. Clients can authenticate by sending `Authorization: Bearer <token>` in HTTP request headers. Useful for scripts and automation.
+</ParamField>
+
+<ParamField path="SB_REMEMBER_ME_HOURS" type="number" default="168">
+  Duration in hours for a "Remember me" session. Defaults to 168 hours (7 days). Reduce this on shared or untrusted devices.
+</ParamField>
+
+<ParamField path="SB_LOCKOUT_LIMIT" type="number" default="10">
+  Number of consecutive failed login attempts before a client IP is locked out.
+</ParamField>
+
+<ParamField path="SB_LOCKOUT_TIME" type="number" default="60">
+  Duration in seconds a client remains locked out after hitting `SB_LOCKOUT_LIMIT`.
+</ParamField>
+
+## Networking
+
+<ParamField path="SB_HOSTNAME" type="string" default="127.0.0.1">
+  The IP address SilverBullet binds to. Defaults to `127.0.0.1` (localhost only) for the binary. The Docker image defaults to `0.0.0.0` (all interfaces) so the container is reachable from the host. Set to `0.0.0.0` to accept outside connections.
+</ParamField>
+
+<ParamField path="SB_PORT" type="number" default="3000">
+  The port SilverBullet listens on. Map a different host port using Docker's `-p` flag without changing this value.
+</ParamField>
+
+<ParamField path="SB_URL_PREFIX" type="string">
+  A URL path prefix if you serve SilverBullet at a sub-path, e.g. `/notes`. Leave unset to serve at the root.
+</ParamField>
+
+## General
+
+<ParamField path="SB_SPACE_IGNORE" type="string">
+  Ignore certain path patterns using `.gitignore`-style syntax. Files matching these patterns are excluded from indexing and the space listing. Example: `SB_SPACE_IGNORE="IgnoreMe/*"`.
+</ParamField>
+
+<ParamField path="SB_NAME" type="string">
+  Sets the `name` and `short_name` fields in the PWA web app manifest. Controls how the app appears when installed on a home screen or dock.
+</ParamField>
+
+<ParamField path="SB_DESCRIPTION" type="string">
+  Sets the `description` field in the PWA web app manifest.
+</ParamField>
+
+## File system
+
+<ParamField path="SB_FOLDER" type="string" default="/space">
+  Path to the directory that stores your space (Markdown files and attachments). In Docker, this defaults to `/space`, which should be mounted as a volume.
+</ParamField>
+
+<ParamField path="SB_READ_ONLY" type="boolean" default="false">
+  Set to `true` to serve the space in read-only mode. Write operations will be rejected.
+</ParamField>
+
+<ParamField path="SB_INDEX_PAGE" type="string" default="index">
+  The page shown when a user navigates to the root URL. Defaults to `index`.
+</ParamField>
+
+<ParamField path="PUID" type="number">
+  User ID to run the SilverBullet process as inside the Docker container. If unset, the UID is inferred from the owner of `SB_FOLDER`. Set explicitly to control file ownership.
+</ParamField>
+
+<ParamField path="PGID" type="number">
+  Group ID to run the SilverBullet process as inside the Docker container. Inferred from `SB_FOLDER`'s group owner if unset.
+</ParamField>
+
+## Security
+
+<ParamField path="SB_SHELL_BACKEND" type="string" default="local">
+  Controls whether plugs can run shell commands on the server. Set to `off` to disable shell execution entirely. Only relevant when using local disk storage; automatically disabled for other backends.
+</ParamField>
+
+<ParamField path="SB_SHELL_WHITELIST" type="string">
+  A space-separated list of allowed shell command names (first argument only, not full paths). When set, only these commands can be invoked by plugs. Example: `SB_SHELL_WHITELIST="git pandoc"`. When unset, all commands are allowed.
+</ParamField>
+
+## Runtime API
+
+<ParamField path="SB_RUNTIME_API" type="string">
+  The Runtime API is enabled automatically when Chrome/Chromium is detected on the system. Set to `0` to explicitly disable it. The Runtime API is not available in read-only mode.
+</ParamField>
+
+<ParamField path="SB_CHROME_PATH" type="string">
+  Optional explicit path to the Chrome/Chromium binary used by the Runtime API. Falls back to the `CHROMIUM_PATH` environment variable, then auto-detection.
+</ParamField>
+
+## Metrics
+
+<ParamField path="SB_METRICS_PORT" type="number">
+  HTTP port to expose Prometheus metrics on the `/metrics` endpoint. When unset, metrics are not exposed.
+</ParamField>
+
+## Debugging
+
+<ParamField path="SB_HTTP_LOGGING" type="boolean">
+  Set to any non-empty value to enable HTTP request logging on the server. Useful for diagnosing proxy or authentication issues.
+</ParamField>
+
+<ParamField path="SB_LOG_PUSH" type="boolean">
+  When set, asks connected clients to push their browser-side logs to the server. Helps diagnose client-side issues remotely.
+</ParamField>
+
+## CLI flags
+
+When running the SilverBullet binary directly (not via Docker), you can pass options as flags:
+
+```bash
+silverbullet --port 8080 --hostname 127.0.0.1 /path/to/space
+```
+
+| Flag           | Equivalent env var | Description                          |
+| -------------- | ------------------ | ------------------------------------ |
+| `--port`       | `SB_PORT`          | Port to listen on                    |
+| `--hostname`   | `SB_HOSTNAME`      | IP address to bind                   |
+| `--user`       | `SB_USER`          | Username and password (`user:pass`)  |
+| `--auth-token` | `SB_AUTH_TOKEN`    | Bearer token for API access          |
+| `--read-only`  | `SB_READ_ONLY`     | Enable read-only mode                |
+
+<Note>
+  Environment variables take precedence over CLI flags when both are set.
+</Note>
+
+## Docker Compose example
+
+A common production setup using Docker Compose with authentication and a named volume:
+
+```yaml
+services:
+  silverbullet:
+    image: ghcr.io/silverbulletmd/silverbullet
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - space:/space
+    environment:
+      SB_USER: "pete:mysecretpassword"
+      SB_REMEMBER_ME_HOURS: "72"
+      SB_LOCKOUT_LIMIT: "5"
+      SB_LOCKOUT_TIME: "120"
+
+volumes:
+  space:
+```
+
+<Tip>
+  Store secrets like `SB_USER` in a `.env` file and reference them with `env_file` in your Compose file, rather than hardcoding them in `docker-compose.yml`.
+</Tip>
+
+## Sync configuration
+
+Sync behavior is configured inside SilverBullet itself using Space Lua in your `CONFIG` page, not via environment variables.
+
+By default all pages sync to the browser but documents (PDFs, images, etc.) do not. To also sync documents for offline access:
+
+```lua
+config.set("sync.documents", true)
+```
+
+To exclude specific file types from syncing:
+
+```lua
+config.set("sync.ignore", {
+  "*.pdf",
+  "*.mp4"
+})
+```
+
+<Note>
+  Sync configuration must be set in the `CONFIG` page specifically. Changes take effect after reloading the client and waiting for a sync cycle.
+</Note>

@@ -1,0 +1,376 @@
+---
+title: "Index API"
+description: "Query SilverBullet's object index by tag. Powers all LIQ queries, cross-page lookups, and custom data storage."
+---
+
+The `index` object is a global available in all Space Lua scripts. It provides access to SilverBullet's object index — the database that powers all query-driven content in your space. Every page, task, link, tag, and frontmatter attribute is automatically indexed as a typed object.
+
+---
+
+## Querying objects
+
+### index.tag(name)
+
+Returns a query collection of all objects with the given tag. This is the primary source for LIQ (Lua Integrated Query) queries using the `query[[...]]` syntax.
+
+<ParamField path="name" type="string" required>
+  Tag name to query. Can be a standard SilverBullet tag (see below) or a custom tag defined in frontmatter or with `#hashtag` syntax.
+</ParamField>
+
+```lua
+-- Get all pages
+local pages = query[[from index.tag "page"]]
+
+-- Get all open tasks
+local tasks = query[[
+  from t = index.tag "task"
+  where not t.done
+]]
+
+-- Get all items tagged #project
+local projects = query[[
+  from p = index.tag "project"
+  order by p.name
+]]
+```
+
+<Note>
+  `index.tag("name")` and `index.tag "name"` are equivalent — Lua allows omitting parentheses for single string arguments.
+</Note>
+
+---
+
+## Standard tags
+
+SilverBullet automatically indexes these tags for every page in your space.
+
+### `page`
+
+Every `.md` file in your space is indexed as a `page` object.
+
+<ResponseField name="name" type="string">
+  Page name (path relative to space root, without `.md`).
+</ResponseField>
+<ResponseField name="ref" type="string">
+  Canonical reference string for the page (same as `name`).
+</ResponseField>
+<ResponseField name="lastModified" type="number">
+  Unix timestamp in milliseconds of the last modification.
+</ResponseField>
+<ResponseField name="created" type="number">
+  Unix timestamp in milliseconds when the page was created.
+</ResponseField>
+<ResponseField name="tags" type="string[]">
+  Array of tags applied to the page via frontmatter or inline `#hashtag` syntax.
+</ResponseField>
+
+Any key in the page's YAML frontmatter is also added as a field on the `page` object. For example, a page with `status: active` in its frontmatter will have a `status` field accessible in queries.
+
+```lua
+-- Pages with a specific frontmatter value
+local active = query[[
+  from p = index.tag "page"
+  where p.status == "active"
+  order by p.lastModified desc
+]]
+```
+
+---
+
+### `task`
+
+Every `- [ ] task text` line is indexed as a `task` object.
+
+<ResponseField name="name" type="string">
+  Task description text.
+</ResponseField>
+<ResponseField name="done" type="boolean">
+  `true` if the task is checked (`- [x]`), `false` otherwise.
+</ResponseField>
+<ResponseField name="page" type="string">
+  Name of the page where the task lives.
+</ResponseField>
+<ResponseField name="pos" type="number">
+  Character offset of the task within its page.
+</ResponseField>
+<ResponseField name="tags" type="string[]">
+  Tags applied to this specific task.
+</ResponseField>
+<ResponseField name="due" type="string">
+  Due date string if set (format: `YYYY-MM-DD`).
+</ResponseField>
+
+```lua
+-- All incomplete tasks, sorted by due date
+local pending = query[[
+  from t = index.tag "task"
+  where not t.done
+  order by t.due
+]]
+```
+
+---
+
+### `link`
+
+Every `[[wiki link]]` in your space is indexed as a `link` object.
+
+<ResponseField name="from" type="string">
+  Name of the page containing the link.
+</ResponseField>
+<ResponseField name="to" type="string">
+  Name of the page being linked to.
+</ResponseField>
+<ResponseField name="page" type="string">
+  Same as `from` — the source page name.
+</ResponseField>
+<ResponseField name="pos" type="number">
+  Character offset of the link within the source page.
+</ResponseField>
+
+```lua
+-- All pages that link to a specific page
+local backlinks = query[[
+  from l = index.tag "link"
+  where l.to == "MyPage"
+]]
+```
+
+---
+
+### `tag`
+
+Every distinct tag used anywhere in the space is indexed as a `tag` object. The `tag` tag itself tracks what tags exist.
+
+<ResponseField name="name" type="string">
+  Tag name without the `#` prefix.
+</ResponseField>
+<ResponseField name="page" type="string">
+  A page where this tag is used.
+</ResponseField>
+
+```lua
+-- List all tags used in the space
+local all_tags = query[[from index.tag "tag"]]
+```
+
+---
+
+### `item`
+
+Every `- bullet item` (non-task) list item is indexed as an `item` object.
+
+<ResponseField name="name" type="string">
+  Text content of the list item.
+</ResponseField>
+<ResponseField name="page" type="string">
+  Page where this item lives.
+</ResponseField>
+<ResponseField name="pos" type="number">
+  Character offset within the page.
+</ResponseField>
+
+---
+
+### `paragraph`
+
+Every paragraph block is indexed as a `paragraph` object.
+
+<ResponseField name="name" type="string">
+  Text content of the paragraph.
+</ResponseField>
+<ResponseField name="page" type="string">
+  Page where the paragraph lives.
+</ResponseField>
+<ResponseField name="pos" type="number">
+  Character offset within the page.
+</ResponseField>
+
+---
+
+### `header`
+
+Every ATX heading (`# Heading`) is indexed as a `header` object.
+
+<ResponseField name="name" type="string">
+  Heading text.
+</ResponseField>
+<ResponseField name="page" type="string">
+  Page where the heading lives.
+</ResponseField>
+<ResponseField name="pos" type="number">
+  Character offset within the page.
+</ResponseField>
+<ResponseField name="level" type="number">
+  Heading level: `1` through `6`.
+</ResponseField>
+
+---
+
+## Custom tags
+
+You can define custom tags using frontmatter or inline hashtag syntax. Any tag you apply to a page becomes a queryable source.
+
+```markdown
+---
+tags: project
+status: active
+priority: high
+---
+
+# My Project
+```
+
+```lua
+-- Query all pages tagged #project
+local projects = query[[
+  from p = index.tag "project"
+  where p.status == "active"
+  order by p.priority desc
+]]
+```
+
+Custom objects can also be indexed programmatically using `index.indexObjects()`.
+
+---
+
+## Advanced index operations
+
+### index.markdown(text, pageMeta)
+
+Ad-hoc indexes a Markdown string in memory and returns all objects found in it. Useful for parsing and extracting structured data from arbitrary text without storing it in the space.
+
+<ParamField path="text" type="string" required>
+  Markdown text to index and parse.
+</ParamField>
+
+<ParamField path="pageMeta" type="table">
+  Optional page metadata to associate with the indexed objects. When omitted, empty/dummy values are used.
+</ParamField>
+
+```lua
+-- Extract all tasks from a Markdown string
+local results = query[[
+  from index.markdown("* Item 1\n* [ ] Task 1\n* [ ] Task 2")
+  where _.tag == "task"
+]]
+for t in each(results) do
+  print(t.name, t.done)
+end
+```
+
+---
+
+### index.indexObjects(page, objects)
+
+Stores an array of custom objects in the index for a given page. This is how you persist structured data that can later be queried with `index.tag()`.
+
+<ParamField path="page" type="string" required>
+  Name of the page to associate the objects with.
+</ParamField>
+
+<ParamField path="objects" type="table[]" required>
+  Array of object tables. Each object should have at minimum a `tag` field identifying its type and a `ref` field as a unique identifier within the page.
+</ParamField>
+
+```lua
+local objects = {
+  { tag = "contact", ref = "alice", name = "Alice", email = "alice@example.com" },
+  { tag = "contact", ref = "bob",   name = "Bob",   email = "bob@example.com" }
+}
+index.indexObjects("Contacts", objects)
+
+-- Now queryable
+local contacts = query[[from index.tag "contact" order by _.name]]
+```
+
+---
+
+### index.queryLuaObjects(tag, queryOptions, scopedVariables)
+
+Queries indexed objects using a Lua table as the query descriptor. This is a lower-level alternative to the `query[[...]]` syntax.
+
+<ParamField path="tag" type="string" required>
+  Tag name to query.
+</ParamField>
+
+<ParamField path="queryOptions" type="table" required>
+  Query options table. Supported keys include `limit`, `filter`, and `orderBy`.
+</ParamField>
+
+<ParamField path="scopedVariables" type="table">
+  Optional table of variables to expose inside the query filter functions.
+</ParamField>
+
+```lua
+local tasks = index.queryLuaObjects("task", { limit = 10 })
+for t in each(tasks) do
+  print(t.name)
+end
+```
+
+---
+
+### index.getObjectByRef(page, tag, ref)
+
+Retrieves a single indexed object by its page, tag, and ref identifier.
+
+<ParamField path="page" type="string" required>
+  Name of the page the object belongs to.
+</ParamField>
+
+<ParamField path="tag" type="string" required>
+  Tag type of the object.
+</ParamField>
+
+<ParamField path="ref" type="string" required>
+  Ref identifier of the object within the page.
+</ParamField>
+
+```lua
+local task = index.getObjectByRef("my page", "mytask", "task1")
+if task then
+  print("Found: " .. task.name)
+end
+```
+
+<ResponseField name="return" type="table | nil">
+  The matching object, or `nil` if not found.
+</ResponseField>
+
+---
+
+### index.extractFrontmatter(text, extractOptions)
+
+Parses a Markdown document string and returns its frontmatter and (optionally cleaned) text. Handles SilverBullet's tag indexing conventions.
+
+<ParamField path="text" type="string" required>
+  Full Markdown document text to parse.
+</ParamField>
+
+<ParamField path="extractOptions" type="table">
+  Optional table controlling what is cleaned from the returned `text`:
+  - `removeKeys` — array of frontmatter keys to remove from the returned frontmatter table.
+  - `removeTags` — `true` to remove all tags, or an array of specific tag strings to remove.
+  - `removeFrontMatterSection` — `true` to strip the entire `---` frontmatter block from the returned text.
+</ParamField>
+
+```lua
+local page_text = space.readPage("MyPage")
+local result = index.extractFrontmatter(page_text, {
+  removeFrontMatterSection = true
+})
+print(result.frontmatter.status)  -- frontmatter value
+print(result.text)                -- page text without the frontmatter block
+```
+
+<ResponseField name="return" type="table">
+  <Expandable title="fields">
+    <ResponseField name="frontmatter" type="table">
+      Parsed frontmatter as a Lua table.
+    </ResponseField>
+    <ResponseField name="text" type="string">
+      Document text, with any transformations from `extractOptions` applied.
+    </ResponseField>
+  </Expandable>
+</ResponseField>

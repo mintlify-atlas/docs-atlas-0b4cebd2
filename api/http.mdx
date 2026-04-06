@@ -1,0 +1,441 @@
+---
+title: "HTTP API"
+description: "SilverBullet's RESTful HTTP API for programmatic access — file system endpoints, runtime Lua evaluation, and utility endpoints."
+---
+
+SilverBullet exposes an HTTP API for programmatic access from scripts, external tools, and automation pipelines. The API covers three areas:
+
+- **File system** at `/.fs/*` — read, write, list, and delete pages and files
+- **Runtime API** at `/.runtime/*` — evaluate Lua expressions and scripts in a live client context
+- **Utility endpoints** — health checks, authentication, and client configuration
+
+---
+
+## Authentication
+
+When `SB_AUTH_TOKEN` is set, most endpoints require authentication. You can authenticate using either a bearer token or a session cookie.
+
+<Tabs>
+  <Tab title="Bearer token">
+    Pass the token in the `Authorization` header:
+
+    ```bash
+    curl -H "Authorization: Bearer mytoken" http://localhost:3000/.fs
+    ```
+  </Tab>
+  <Tab title="Session cookie">
+    Obtain a session cookie by posting credentials to `/.auth`:
+
+    ```bash
+    curl -c cookies.txt -X POST http://localhost:3000/.auth \
+      -d "username=me&password=secret&rememberMe=on"
+    ```
+
+    Then pass the cookie jar in subsequent requests:
+
+    ```bash
+    curl -b cookies.txt http://localhost:3000/.fs
+    ```
+  </Tab>
+</Tabs>
+
+The following paths are excluded from authentication: `/service_worker.js`, `/.client/*`, `/.auth`, `/.ping`.
+
+---
+
+## File system endpoints
+
+The space file system is exposed at `/.fs`. Pages are stored as `.md` files; documents are all other file types.
+
+### `GET /.fs`
+
+Returns a full listing of all files in the space as a JSON array.
+
+```bash
+curl -H "Authorization: Bearer mytoken" http://localhost:3000/.fs
+```
+
+**Response:** `Content-Type: application/json`
+
+```json
+[
+  {
+    "name": "index.md",
+    "lastModified": 1710000000000,
+    "created": 1700000000000,
+    "size": 1024,
+    "perm": "rw"
+  },
+  {
+    "name": "Projects/Q1.md",
+    "lastModified": 1710001000000,
+    "created": 1705000000000,
+    "size": 2048,
+    "perm": "rw"
+  }
+]
+```
+
+<ResponseField name="name" type="string">
+  File path relative to the space root, including extension.
+</ResponseField>
+<ResponseField name="lastModified" type="number">
+  Unix timestamp in milliseconds. Must match the `X-Last-Modified` header returned by `GET /.fs/<path>` for sync to work correctly.
+</ResponseField>
+<ResponseField name="created" type="number">
+  Unix timestamp in milliseconds when the file was created.
+</ResponseField>
+<ResponseField name="size" type="number">
+  File size in bytes.
+</ResponseField>
+<ResponseField name="perm" type="string">
+  Permission: `"rw"` (read-write) or `"ro"` (read-only).
+</ResponseField>
+
+---
+
+### `GET /.fs/<path>`
+
+Reads and returns the content of the file at the given path.
+
+<ParamField path="path.path" type="string" required>
+  File path relative to the space root, including extension. For example, `index.md` or `Projects/Q1.md`.
+</ParamField>
+
+<ParamField path="header.X-Get-Meta" type="string">
+  When set to any value, the server may return only headers without the file body. `X-Content-Length` will contain the actual file size.
+</ParamField>
+
+```bash
+# Read a page
+curl -H "Authorization: Bearer mytoken" \
+  http://localhost:3000/.fs/index.md
+
+# Read only metadata headers (no body)
+curl -H "Authorization: Bearer mytoken" \
+  -H "X-Get-Meta: true" \
+  http://localhost:3000/.fs/index.md
+```
+
+**Response headers:**
+
+<ResponseField name="X-Last-Modified" type="number">
+  Last modified time as a Unix timestamp in milliseconds. Must match the `lastModified` field in the `GET /.fs` listing for sync to work correctly.
+</ResponseField>
+<ResponseField name="X-Created" type="number">
+  Creation time as a Unix timestamp in milliseconds.
+</ResponseField>
+<ResponseField name="X-Permission" type="string">
+  `"rw"` or `"ro"`. Determines whether the editor opens in read-only or edit mode. When absent, `"ro"` is assumed.
+</ResponseField>
+<ResponseField name="X-Content-Length" type="number">
+  File size in bytes. Equal to `Content-Length` unless the request used `X-Get-Meta` and the body was not returned.
+</ResponseField>
+
+---
+
+### `PUT /.fs/<path>`
+
+Writes the request body to the file at the given path. Creates the file if it does not exist.
+
+<ParamField path="path.path" type="string" required>
+  File path relative to the space root, including extension.
+</ParamField>
+
+```bash
+# Write a page
+curl -X PUT \
+  -H "Authorization: Bearer mytoken" \
+  -H "Content-Type: text/markdown" \
+  --data "# My Page
+
+Content here." \
+  http://localhost:3000/.fs/MyPage.md
+
+# Upload a binary file
+curl -X PUT \
+  -H "Authorization: Bearer mytoken" \
+  --data-binary @logo.png \
+  http://localhost:3000/.fs/images/logo.png
+```
+
+---
+
+### `DELETE /.fs/<path>`
+
+Deletes the file at the given path.
+
+<ParamField path="path.path" type="string" required>
+  File path relative to the space root, including extension.
+</ParamField>
+
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer mytoken" \
+  http://localhost:3000/.fs/old-notes.md
+```
+
+---
+
+## Utility endpoints
+
+### `GET /.ping`
+
+Health check. Returns HTTP 200 with body `OK` if the server is running. No authentication required.
+
+```bash
+curl http://localhost:3000/.ping
+# OK
+```
+
+---
+
+### `POST /.auth`
+
+Authenticates a user and sets a session cookie. Returns 403 if authentication is not enabled on the server.
+
+<ParamField path="body.username" type="string" required>
+  Username to authenticate.
+</ParamField>
+
+<ParamField path="body.password" type="string" required>
+  Password for the user.
+</ParamField>
+
+<ParamField path="body.rememberMe" type="string">
+  When set to any non-empty value, the session cookie is set to persist beyond the browser session.
+</ParamField>
+
+<ParamField path="body.from" type="string">
+  Optional redirect path to include in the success response.
+</ParamField>
+
+```bash
+curl -c cookies.txt -X POST http://localhost:3000/.auth \
+  -d "username=me&password=secret&rememberMe=on"
+```
+
+**Response on success:** `{"status":"ok","redirect":"/"}`
+
+**Response on failure:** `{"status":"error","error":"Invalid credentials"}`
+
+<Warning>
+  The server implements a lockout after repeated failed login attempts to prevent brute-force attacks.
+</Warning>
+
+---
+
+### `GET /.logout`
+
+Clears the authentication session cookie and redirects to `/.auth`.
+
+```bash
+curl -b cookies.txt -c cookies.txt http://localhost:3000/.logout
+```
+
+---
+
+### `GET /.config`
+
+Returns the client configuration as JSON. Used by the SilverBullet browser client on startup.
+
+```bash
+curl -H "Authorization: Bearer mytoken" http://localhost:3000/.config
+```
+
+**Response:**
+
+```json
+{
+  "readOnly": false,
+  "spaceFolderPath": "/space",
+  "indexPage": "index",
+  "logPush": false,
+  "enableClientEncryption": false
+}
+```
+
+<ResponseField name="readOnly" type="boolean">
+  When `true`, the client opens in read-only mode.
+</ResponseField>
+<ResponseField name="spaceFolderPath" type="string">
+  Path of the space folder on the server. Used to prefix client database names when switching spaces.
+</ResponseField>
+<ResponseField name="indexPage" type="string">
+  Name of the default page shown when navigating to the root URL.
+</ResponseField>
+<ResponseField name="logPush" type="boolean">
+  When `true`, the client sends browser console logs to the server via `POST /.logs`.
+</ResponseField>
+<ResponseField name="enableClientEncryption" type="boolean">
+  When `true`, the client offers client-side encryption as an option (requires authentication to be enabled).
+</ResponseField>
+
+---
+
+## Runtime API
+
+The Runtime API lets you evaluate Lua expressions and scripts over HTTP. It requires Chrome or Chromium on the server — SilverBullet launches a headless browser that runs a full client, giving scripts access to the complete `editor.*`, `space.*`, and query API surface.
+
+<Note>
+  The Runtime API is enabled automatically when Chrome or Chromium is detected. Set `SB_CHROME_PATH=/usr/bin/chromium` to specify a custom path. Set `SB_RUNTIME_API=0` to disable it. It is not available in read-only mode (`SB_READ_ONLY`).
+</Note>
+
+To use the Runtime API with Docker, use the `-runtime-api` image variant which includes Chromium:
+
+```yaml
+services:
+  silverbullet:
+    image: ghcr.io/silverbulletmd/silverbullet:latest-runtime-api
+    environment:
+      - SB_USER=me:secret
+      - SB_AUTH_TOKEN=mytoken
+    volumes:
+      - myspace:/space
+    ports:
+      - "3000:3000"
+```
+
+---
+
+### `POST /.runtime/lua`
+
+Evaluates a single Lua expression and returns its result as JSON.
+
+The request body is the raw Lua expression as plain text.
+
+```bash
+# Evaluate a simple expression
+curl -d '1 + 1' http://localhost:3000/.runtime/lua
+# {"result":2}
+
+# Get the currently open page
+curl -d 'editor.getCurrentPage()' http://localhost:3000/.runtime/lua
+# {"result":"index"}
+
+# Read a page
+curl -H "Authorization: Bearer mytoken" \
+  -d 'space.readPage("index")' \
+  http://localhost:3000/.runtime/lua
+```
+
+<ResponseField name="result" type="any">
+  The evaluated result. JSON-serialized Lua value.
+</ResponseField>
+
+---
+
+### `POST /.runtime/lua_script`
+
+Evaluates a multi-statement Lua script. The script must use an explicit `return` statement to produce output.
+
+```bash
+curl -H "Authorization: Bearer mytoken" \
+  -d 'local pages = query[[from index.tag "page" limit 3 select table.select(_, "name")]]
+return pages' \
+  http://localhost:3000/.runtime/lua_script
+# {"result":[{"name":"index"},{"name":"Projects"},{"name":"TODO"}]}
+```
+
+---
+
+### `GET /.runtime/screenshot`
+
+Captures the current viewport of the headless Chrome instance as a PNG image.
+
+```bash
+curl -o screenshot.png http://localhost:3000/.runtime/screenshot
+```
+
+---
+
+### `GET /.runtime/logs`
+
+Returns recent console log entries from the headless browser.
+
+<ParamField path="query.limit" type="number" default="100">
+  Maximum number of log entries to return. The server retains up to 1000 entries.
+</ParamField>
+
+<ParamField path="query.since" type="number">
+  Unix millisecond timestamp. Only returns entries newer than this timestamp.
+</ParamField>
+
+```bash
+curl "http://localhost:3000/.runtime/logs?limit=5"
+```
+
+**Response:**
+
+```json
+{
+  "logs": [
+    {
+      "level": "log",
+      "text": "[Client] Booting SilverBullet client",
+      "timestamp": 1710000000000
+    },
+    {
+      "level": "info",
+      "text": "Service worker disabled.",
+      "timestamp": 1710000000050
+    }
+  ]
+}
+```
+
+<ResponseField name="level" type="string">
+  Log level: `"log"`, `"info"`, `"warn"`, `"error"`, or `"debug"`.
+</ResponseField>
+<ResponseField name="text" type="string">
+  Concatenated console message.
+</ResponseField>
+<ResponseField name="timestamp" type="number">
+  Unix milliseconds when the entry was captured.
+</ResponseField>
+
+---
+
+### Runtime API timeout
+
+The Lua endpoints support an `X-Timeout` header to control the maximum wait time in seconds. The default timeout is 30 seconds.
+
+```bash
+curl -H "Authorization: Bearer mytoken" \
+  -H "X-Timeout: 60" \
+  -d 'some_long_running_script()' \
+  http://localhost:3000/.runtime/lua_script
+```
+
+---
+
+### Runtime API error responses
+
+All Runtime API errors return JSON with an `error` key.
+
+| HTTP status | Meaning |
+|-------------|---------|
+| `400` | Empty request body: `{"error": "Request body is required"}` |
+| `500` | Lua execution error: `{"error": "<error message>"}` |
+| `503` | Runtime API not enabled or browser not running: `{"error": "No headless browser running"}` |
+| `504` | Timeout exceeded: `{"error": "Request timed out"}` |
+
+---
+
+## Proxy endpoint
+
+### `* /.proxy/<host>/path`
+
+Proxies an HTTP request to an external host to avoid browser CORS restrictions.
+
+```bash
+# Proxy a request to an external API
+curl -H "Authorization: Bearer mytoken" \
+  "http://localhost:3000/.proxy/api.example.com/data"
+```
+
+<Note>
+  The proxy endpoint is blocked in read-only mode. The URI does not include a scheme — `http://` is used for `localhost`, `127.0.0.1`, bare IPs, and `host.docker.internal`; `https://` is used for everything else.
+</Note>
+
+Request headers prefixed with `X-Proxy-Header-` have the prefix stripped and are forwarded to the upstream server. Upstream response headers are returned with an `x-proxy-header-` prefix. The actual upstream status code is available in the `x-proxy-status-code` response header — the proxy itself always returns HTTP 200 to avoid interference.

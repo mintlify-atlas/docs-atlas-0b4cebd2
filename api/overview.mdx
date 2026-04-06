@@ -1,0 +1,112 @@
+---
+title: "API overview"
+description: "All APIs available to Space Lua scripts — syscall APIs, Space Lua APIs, the Lua standard library, and the HTTP API."
+---
+
+Space Lua scripts run inside SilverBullet's browser client and have access to three layers of APIs, plus a separate HTTP API for external access.
+
+## API categories
+
+### Syscall APIs
+
+Syscall APIs are low-level calls into SilverBullet's runtime. They are provided as global objects — `space`, `editor`, `index` — and map directly to the TypeScript syscall layer that powers the client. Use these when you need to read or write pages, interact with the editor, or query the object index.
+
+```lua
+-- Read the content of a page
+local content = space.readPage("MyPage")
+
+-- Write to a page
+space.writePage("MyNotes", "# My Notes\n\nSome content here.")
+
+-- Check if a page exists
+if space.pageExists("Config") then
+  print("Config page found")
+end
+```
+
+### Space Lua APIs
+
+Space Lua APIs are higher-level, Lua-native APIs that build on the syscall layer. They include `template`, `query`, and helper libraries that ship with SilverBullet. These are the APIs you use most often when writing widgets, slash commands, and page templates.
+
+```lua
+-- Insert text at the cursor
+editor.insertAtCursor("Hello from Space Lua!")
+
+-- Query all pages tagged #project sorted by priority
+local projects = query[[
+  from p = index.tag "project"
+  order by p.priority desc
+]]
+
+-- Render a template for each result
+template.each(projects, template.new[==[
+  * [[${name}]] — ${status}
+]==])
+```
+
+### Lua standard library
+
+SilverBullet includes a subset of the Lua 5.4 standard library plus several SilverBullet-specific extensions:
+
+| Module | Contents |
+|--------|----------|
+| `string` | `format`, `find`, `match`, `sub`, `upper`, `lower`, `rep`, `gsub`, `gmatch` |
+| `table` | `insert`, `remove`, `concat`, `sort`, `select`, `unpack` |
+| `math` | `floor`, `ceil`, `abs`, `max`, `min`, `random`, `sqrt` |
+| `os` | `time`, `date`, `clock` |
+| Global | `print`, `assert`, `ipairs`, `pairs`, `type`, `tostring`, `tonumber`, `pcall`, `xpcall`, `error`, `each`, `some` |
+
+## Calling APIs from Space Lua
+
+All APIs are available as globals inside any Space Lua code block. There is no import statement — you call them directly.
+
+```lua
+-- Read a page and count its characters
+local content = space.readPage("MyPage")
+print("Length: " .. #content)
+
+-- Get the currently open page name
+local current = editor.getCurrentPage()
+editor.flashNotification("You are on: " .. current, "info")
+
+-- Query all tasks that are not yet done
+local open_tasks = query[[
+  from t = index.tag "task"
+  where not t.done
+  order by t.page
+]]
+```
+
+<Note>
+  The `editor` API is only available in the browser client. Scripts running via the Runtime API HTTP endpoint have access to `editor.*` because they execute inside a full SilverBullet client.
+</Note>
+
+## HTTP API
+
+SilverBullet also exposes an HTTP API for programmatic access from outside the browser. This includes:
+
+- **File system endpoints** at `/.fs/*` for reading, writing, and deleting pages and files
+- **Runtime API** at `/.runtime/*` for evaluating Lua expressions and scripts over HTTP
+- **Utility endpoints** at `/.ping`, `/.auth`, `/.logout`, and `/.config`
+
+See the [HTTP API reference](/api/http) for full documentation and curl examples.
+
+## API reference pages
+
+<CardGroup cols={2}>
+  <Card title="Space API" icon="database" href="/api/space">
+    Read, write, list, and delete pages, documents, and files in your space.
+  </Card>
+  <Card title="Editor API" icon="pen-line" href="/api/editor">
+    Interact with the editor UI — cursor, selection, navigation, and notifications.
+  </Card>
+  <Card title="Index API" icon="magnifying-glass" href="/api/index">
+    Query the object index by tag. Powers all LIQ queries and cross-page lookups.
+  </Card>
+  <Card title="Template API" icon="file-code" href="/api/template">
+    Create and render templates for dynamic content, slash commands, and page generation.
+  </Card>
+  <Card title="HTTP API" icon="globe" href="/api/http">
+    RESTful file system and runtime API for external access via curl or scripts.
+  </Card>
+</CardGroup>

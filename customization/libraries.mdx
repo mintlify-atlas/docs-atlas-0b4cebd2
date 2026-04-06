@@ -1,0 +1,123 @@
+---
+title: "Libraries"
+description: "Collections of Space Lua scripts, templates, and pages that extend SilverBullet's functionality."
+---
+
+Libraries are the primary way to share and reuse extensions in SilverBullet. A library is a collection of [Space Lua](/space-lua/overview) scripts, templates, and pages that add new capabilities to your space.
+
+## Key terms
+
+| Term | Description |
+|---|---|
+| **Library** | The unit of distribution — typically one or more pages containing Space Lua code, templates, and other content |
+| **Repository** | A discovery and curation mechanism — a collection of pointers to where libraries can be found |
+| **Library Manager** | The built-in UI for browsing, installing, and updating libraries |
+
+By convention, libraries are kept under the `Library/` prefix (folder) in your space.
+
+## What libraries provide
+
+A library can include any combination of:
+
+- **Slash commands** — such as `/today`, `/task`, `/table`
+- **Page templates** — pre-built blueprints for common page types
+- **Widgets** — reusable UI components that render dynamic content
+- **Maintenance pages** — utilities for tasks like finding broken links
+- **Plugs** — compiled extensions for capabilities that require native code
+
+## The standard library
+
+SilverBullet ships with `Library/Std`, the built-in standard library. It is baked into the application and is **read-only** — you cannot directly edit it.
+
+`Library/Std` provides the core functionality most users rely on, including the pre-built templates (`templates.pageItem`, `templates.taskItem`, etc.), built-in slash commands, and the default widgets.
+
+<Note>
+While you cannot edit `Library/Std` directly, you can override most of its behavior. See [Overriding standard library behavior](#overriding-standard-library-behavior) below.
+</Note>
+
+## Installing libraries
+
+Use the **Library Manager** to browse and install libraries.
+
+<Steps>
+  <Step title="Open the Library Manager">
+    Run the **Library: Manager** command from the command palette (`Ctrl-k` / `Cmd-k`).
+  </Step>
+  <Step title="Browse available libraries">
+    The Library Manager shows libraries from the repositories configured in your space. SilverBullet ships with `Repositories/Std`, which lists the curated set of official libraries.
+  </Step>
+  <Step title="Install a library">
+    Select a library and confirm the installation. SilverBullet downloads the library pages into your space under the `Library/` folder.
+  </Step>
+  <Step title="Use the library">
+    The library's Space Lua scripts are loaded automatically. Any slash commands, page templates, or widgets it provides are immediately available.
+  </Step>
+</Steps>
+
+## Updating and managing installed libraries
+
+Open the **Library: Manager** command at any time to check for updates to your installed libraries.
+
+<Warning>
+When you update a library, your local changes to its pages may be overwritten. If you want to customize a library's behavior, do so through Space Lua overrides rather than by editing the library pages directly.
+</Warning>
+
+To remove a library, delete its pages from your space under the `Library/` folder.
+
+## The repository system
+
+Repositories are collections of pointers that tell SilverBullet where to find libraries. They are themselves pages in your space.
+
+SilverBullet ships with `Repositories/Std`, which points to the official set of curated libraries. You can install additional repositories to access community-maintained or private library collections.
+
+## Developing your own library
+
+You can publish your own libraries to share with others or reuse across spaces.
+
+A simple library is just a page containing a `space-lua` fenced code block:
+
+````markdown
+---
+tags: meta/library
+---
+
+```space-lua
+-- My library's Space Lua code
+command.define {
+  name = "My Library: Hello",
+  run = function()
+    editor.flashNotification "Hello from my library!"
+  end
+}
+```
+````
+
+For guidance on publishing and distributing libraries, see the [Library/Development](https://silverbullet.md/Library/Development) documentation in your space after installing the standard library.
+
+## Overriding standard library behavior
+
+Because Space Lua scripts are loaded in a defined order controlled by their `priority` frontmatter, you can override built-in behavior by defining your own code with a lower priority (which loads later and therefore takes precedence).
+
+For example, to override a built-in page template, create your own page template with the same `command` name:
+
+```markdown
+---
+command: Quick Note
+key: "Ctrl-q q"
+suggestedName: "My Notes/${os.date('%Y-%m-%d/%H-%M-%S')}"
+confirmName: false
+tags: meta/template/page
+---
+My custom quick note template
+```
+
+Because `Library/Std` sets a high priority on its templates, your version (with default priority) loads later and its command registration takes effect.
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="file-text" href="/customization/templates">
+    Learn how page templates and slash templates work inside libraries.
+  </Card>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    The scripting language used to write library functionality.
+  </Card>
+</CardGroup>

@@ -1,0 +1,189 @@
+---
+title: "People notes"
+description: "Build a personal CRM in SilverBullet using one page per person, frontmatter for contact attributes, meeting notes that link to attendees, and automatic activity logs via Linked Mentions."
+---
+
+SilverBullet's people notes pattern uses one page per person as the anchor for everything you know about them. Meeting notes, project pages, tasks — anything that mentions a person's page automatically aggregates there through Linked Mentions and Linked Tasks. You maintain the person page; the activity log builds itself.
+
+<Steps>
+  <Step title="Create a person page">
+    Create a page for someone you interact with. A good naming convention is just the person's name: `Alice`, `Bob`, or `Alice Chen` if you prefer full names. Consistent naming makes it easy to link to people as you write.
+
+    Add YAML frontmatter to capture contact attributes:
+
+    ```yaml
+    ---
+    tags: person
+    email: alice@example.com
+    company: Acme Corp
+    role: Engineering Manager
+    ---
+    ```
+
+    Use whatever fields are relevant to how you work. Common fields: `email`, `phone`, `company`, `role`, `location`, `met` (how you met them). All frontmatter fields are queryable.
+
+    Create a few person pages this way before moving on.
+
+    <Tip>
+      You don't need to fill in every field up front. Add the fields you know, and fill in others as you learn them. Even a nearly empty person page with just a `tags: person` line is enough to start benefiting from Linked Mentions.
+    </Tip>
+  </Step>
+
+  <Step title="Make person pages visually distinct">
+    Add a `tag.define` call to your `CONFIG` page so person pages get a visual prefix in the page picker and editor completions:
+
+    ```lua
+    tag.define {
+      name = "person",
+      transform = function(o)
+        o.pageDecoration = { prefix = "🧑 " }
+        return o
+      end
+    }
+    ```
+
+    After running **System: Reload**, all pages tagged `person` will display with a 🧑 prefix in the Page Picker, link completions, and the editor. This makes it easy to distinguish people from other pages when linking.
+
+    <Warning>
+      Tag customization is a beta feature and may change in future releases.
+    </Warning>
+  </Step>
+
+  <Step title="Write meeting notes that link to attendees">
+    Create a meeting notes page like `Meeting/2026-04-06` and write naturally, linking to the person pages of everyone involved:
+
+    ```markdown
+    Met with [[Alice]] and [[Bob]] to discuss the Q2 roadmap.
+    Alice will lead the backend migration. Bob is taking point on
+    the API redesign timeline.
+
+    Key decisions:
+    * Migration begins in May
+    * API design review scheduled for next week
+    ```
+
+    The `[[Alice]]` and `[[Bob]]` links connect this meeting note to their person pages. You don't have to do anything else — the connection is made as soon as you save.
+  </Step>
+
+  <Step title="Add tasks that reference people">
+    Write follow-up tasks anywhere you'd naturally write them — in meeting notes, on project pages, in your journal. Reference the person's page in the task:
+
+    ```markdown
+    * [ ] Send proposal to [[Alice]]
+    * [ ] Schedule follow-up with [[Bob]]
+    * [ ] Share roadmap doc with [[Alice]] and [[Bob]]
+    ```
+
+    These tasks are linked to both the page they're written on and the person pages they mention.
+  </Step>
+
+  <Step title="View a person's automatic activity log">
+    Open Alice's page. Two things appear automatically, without any manual maintenance:
+
+    **Linked Tasks** (at the top of the page) shows all incomplete tasks from other pages that mention Alice — including "Send proposal to Alice" from your meeting notes.
+
+    **Linked Mentions** (at the bottom of the page) shows every page that references Alice — meeting notes, project pages, journal entries, anything. Each entry shows the surrounding context, so you can see what was discussed in each mention.
+
+    Alice's page is now a self-updating activity log. Every interaction you record elsewhere in your space, as long as you link to `[[Alice]]`, shows up here automatically.
+  </Step>
+
+  <Step title="Query across all people">
+    Build useful views on a "People" overview page or your home page using Space Lua queries.
+
+    List all people at a specific company:
+
+    ```lua
+    ## People at Acme Corp
+    ${query[[from p = tags.person where p.company == "Acme Corp"]]}
+    ```
+
+    List all people, sorted by company (useful for seeing your full network organized):
+
+    ```lua
+    ${query[[
+      from p = tags.person
+      order by p.company
+    ]]}
+    ```
+
+    List everyone at a given company with their role and email:
+
+    ```lua
+    ${template.each(query[[
+      from p = tags.person
+      where p.company == "Acme Corp"
+      order by p.role
+    ]], templates.pageItem)}
+    ```
+
+    Because all person pages share the same frontmatter structure, any attribute you define is available for filtering and sorting.
+  </Step>
+</Steps>
+
+## Logging conversations over time
+
+For ongoing relationships, you may want to keep a chronological log of conversations directly on the person page. One pattern is a simple reverse-chronological list:
+
+```markdown
+---
+tags: person
+email: alice@example.com
+company: Acme Corp
+role: Engineering Manager
+---
+
+## Interaction log
+
+**2026-04-06** — Discussed Q2 roadmap. See [[Meeting/2026-04-06]].
+**2026-03-22** — Intro call. Background in distributed systems, joining from Stripe.
+```
+
+Another pattern is to let your meeting notes (linked via `[[Alice]]`) serve as the log, and rely on Linked Mentions to surface them in order. Both approaches work — pick whichever fits how you write.
+
+## Example: full person page structure
+
+```yaml
+---
+tags: person
+email: jane@example.com
+company: Acme Corp
+role: Product Lead
+location: New York
+met: "Conference 2025"
+---
+```
+
+Below the frontmatter, you might add:
+
+```markdown
+Jane leads product at Acme Corp. Focus on enterprise integrations.
+Strong background in B2B SaaS.
+
+## Notes
+
+* Prefers async communication
+* Main contact for the API partnership discussion
+```
+
+The structured frontmatter makes Jane queryable by company, role, or location. The free-form notes below give context that doesn't fit into fields.
+
+<Note>
+  The Linked Mentions section on Jane's page will automatically accumulate every meeting note, project page, and journal entry that links to `[[Jane]]` — so the "notes" section above is for things you want to be able to read quickly on the person page itself, not for recording every interaction.
+</Note>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Daily journaling" icon="calendar" href="/guides/journaling">
+    Mention people in journal entries to build a timeline on their page.
+  </Card>
+  <Card title="Task management" icon="circle-check" href="/guides/task-management">
+    Track follow-ups and commitments across your whole space.
+  </Card>
+  <Card title="Knowledge base" icon="book-open" href="/guides/knowledge-base">
+    Apply the same linking and querying patterns to any topic.
+  </Card>
+  <Card title="Templates" icon="layout-template" href="/customization/templates">
+    Create a person page template to standardize new contact pages.
+  </Card>
+</CardGroup>

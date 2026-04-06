@@ -1,0 +1,214 @@
+---
+title: "Space Style"
+description: "Custom CSS applied across your entire space via space-style fenced code blocks."
+---
+
+Space Style lets you add custom CSS to SilverBullet using `space-style` fenced code blocks on any page in your space. Like [Space Lua](/space-lua/overview), it is active space-wide — CSS you write anywhere in your space applies to the entire SilverBullet interface.
+
+You can use it to override fonts, adjust layout widths, create custom themes, or style specific page types.
+
+<Note>
+After adding or modifying a `space-style` block, run the **System: Reload** command to apply the updated styles. You do not need to restart the server.
+</Note>
+
+## Adding custom styles
+
+Create a `space-style` fenced code block on any page:
+
+````markdown
+```space-style
+/* Custom font for the editor */
+html {
+  --editor-font: "Georgia" !important;
+}
+```
+````
+
+You can place `space-style` blocks on any page — a dedicated `CONFIG` page, or scattered across your space as needed. All blocks are collected and applied together.
+
+## CSS variables
+
+SilverBullet exposes CSS custom properties (variables) for common styling needs. You can set these inside a rule targeting `html`:
+
+```css
+html {
+  /* Editor font family */
+  --editor-font: "Courier" !important;
+
+  /* Editor content width */
+  --editor-width: 1400px !important;
+
+  /* Accent color */
+  --ui-accent-color: #464cfc;
+
+  /* Top bar background */
+  --top-background-color: #eee;
+}
+
+html[data-theme="dark"] {
+  /* Dark mode accent color */
+  --ui-accent-color: #464cfc;
+}
+```
+
+For a full list of available variables, see the [theme source](https://github.com/silverbulletmd/silverbullet/blob/main/client/styles/theme.scss). Styles not covered by variables can be targeted by inspecting the SilverBullet UI and writing CSS selectors directly.
+
+## Common customizations
+
+<Tabs>
+  <Tab title="Editor font">
+    ```css
+    html {
+      --editor-font: "Georgia" !important;
+    }
+    ```
+  </Tab>
+  <Tab title="Page width">
+    ```css
+    html {
+      --editor-width: 1200px !important;
+    }
+    ```
+  </Tab>
+  <Tab title="Top bar color">
+    ```css
+    /* Using the CSS variable */
+    html {
+      --top-background-color: #eee;
+    }
+
+    /* Or targeting the element directly */
+    #sb-top {
+      background-color: #eee !important;
+    }
+    ```
+  </Tab>
+  <Tab title="Button styling">
+    ```css
+    button {
+      border-radius: 6px;
+      font-size: 0.6rem;
+    }
+
+    button:hover {
+      box-shadow: #121212 0 0 0 3px, transparent 0 0 0 0;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Tag styling
+
+Every hashtag in SilverBullet gets a `data-tag-name` attribute set to the tag name (without the `#` symbol). You can use CSS attribute selectors to style specific tags:
+
+```css
+/* Style the #my-cool-tag hashtag */
+.sb-hashtag[data-tag-name="my-cool-tag"] {
+  background: purple;
+  color: limegreen;
+  font-weight: bolder;
+}
+
+/* Tags with spaces use angle bracket syntax: #<my cool tag> */
+.sb-hashtag[data-tag-name="my cool tag"] {
+  background: purple;
+  color: limegreen;
+  font-weight: bolder;
+}
+
+/* Style all tags at once */
+.sb-hashtag[data-tag-name] {
+  background: yellow;
+  color: goldenrod;
+  border: 2px dashed goldenrod;
+}
+```
+
+## Load order
+
+If you have multiple `space-style` blocks and need to control which styles take precedence, add a `/* priority: number */` comment. Blocks with higher priority numbers are loaded first.
+
+```css
+/* priority: 10 */
+html {
+  --editor-font: "Georgia";
+}
+```
+
+The default priority is `0`. Built-in styles use higher priority values.
+
+## Page decorations
+
+Page decorations let you attach visual elements — icons, color prefixes, or CSS classes — to specific pages based on their frontmatter.
+
+### Supported decorations
+
+| Decoration | Description |
+|---|---|
+| `prefix` | A visual string (often an emoji) prepended to the page name in the top bar and in wiki links |
+| `cssClasses` | One or more CSS class names attached to the page's `<body>`, wiki links, autocomplete items, and page picker entries |
+
+### Applying decorations via frontmatter
+
+Add a `pageDecoration` key to a page's frontmatter:
+
+```yaml
+---
+title: My Page
+pageDecoration:
+  prefix: "📌 "
+  cssClasses:
+    - my-custom-class
+---
+```
+
+The `prefix` appears in the top bar and in any live-preview links to this page. The `cssClasses` list lets you target the page with Space Style.
+
+### Applying decorations via tags
+
+You can use Space Lua's `tag.define` to automatically apply decorations to all pages with a given tag. For example, this makes every page tagged `#person` show a person emoji prefix:
+
+```lua
+tag.define {
+  name = "person",
+  transform = function(o)
+    o.pageDecoration = { prefix = "🧑 " }
+    return o
+  end
+}
+```
+
+### Styling pages with cssClasses
+
+Once a CSS class is attached to a page via `pageDecoration.cssClasses`, you can target it with Space Style in several contexts:
+
+```css
+/* Style the page link in other pages */
+a.my-custom-class {
+  background-color: #b4e46e;
+}
+
+/* Style the top bar when on this page */
+body.my-custom-class #sb-top {
+  background-color: #b4e46e;
+}
+
+/* Style autocomplete suggestions */
+.cm-tooltip-autocomplete li.my-custom-class {
+  background-color: #b4e46e;
+}
+
+/* Style the page picker entry */
+.sb-result-list .sb-option.my-custom-class {
+  background-color: #b4e46e;
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Learn Space Lua, which shares the same space-wide loading model as Space Style.
+  </Card>
+  <Card title="Keyboard shortcuts" icon="keyboard" href="/customization/keyboard-shortcuts">
+    Customize commands and key bindings to match your workflow.
+  </Card>
+</CardGroup>

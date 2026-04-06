@@ -1,0 +1,168 @@
+---
+title: "Templates"
+description: "Reusable content with placeholder expressions for page creation, slash commands, and dynamic rendering."
+---
+
+Templates in SilverBullet are strings that contain `${expression}` placeholders. These placeholders are evaluated by [Space Lua](/space-lua/overview) when the template is rendered, letting you produce dynamic content from live data in your space.
+
+Templates are the foundation for page blueprints, slash commands, and query result rendering.
+
+## Creating templates
+
+Use `template.new` to create a template function from a string. By convention, template strings use `[==[` and `]==]` as delimiters to avoid conflicts with Lua string escaping:
+
+```lua
+templates.greet = template.new[==[Hello, ${name}!]==]
+```
+
+Call the template by passing a table of values:
+
+```lua
+${templates.greet {name = "World"}}
+```
+
+This renders as: `Hello, World!`
+
+## Rendering collections with `template.each`
+
+The most common pattern is using `template.each` to render a list of objects returned by a query:
+
+```lua
+template.each(query[[
+  from index.tag "page"
+  order by lastModified desc
+  limit 5
+]], templates.pageItem)
+```
+
+`template.each` iterates over the collection and applies the template to each item, concatenating the results into a single string.
+
+## Pre-built templates
+
+The standard library provides several ready-to-use templates in the `templates` table:
+
+| Template | Description |
+|---|---|
+| `templates.pageItem` | Renders a page as `* [[pageName]]` |
+| `templates.fullPageItem` | Like `pageItem` but renders the full page name including folders |
+| `templates.taskItem` | Renders a task as a togglable checkbox with a link to its source page |
+| `templates.itemItem` | Renders a list item with a link to its source page |
+| `templates.paragraphItem` | Renders a paragraph with a link to its source page |
+| `templates.tagItem` | Renders a tag as a linked hashtag |
+
+## Page templates
+
+Page templates are pages tagged with `#meta/template/page`. They serve as blueprints for creating new pages with pre-filled content and a specific structure.
+
+### Creating a page template
+
+<Steps>
+  <Step title="Create a new page">
+    Create a page anywhere in your space. The last component of the page name (after the final `/`) is used as the template's display name.
+  </Step>
+  <Step title="Tag it as a page template">
+    Add `tags: meta/template/page` to the page's frontmatter.
+  </Step>
+  <Step title="Write the template body">
+    Write the content that new pages based on this template will start with. Use `|^|` to mark where the cursor should be placed after the page is created.
+  </Step>
+  <Step title="Configure optional frontmatter keys">
+    Add frontmatter to control the template's behavior (see table below).
+  </Step>
+</Steps>
+
+### Configuration options
+
+| Key | Description |
+|---|---|
+| `suggestedName` | Proposed name for the new page. Supports Lua expressions, e.g. `Daily/${date.today()}` |
+| `confirmName` | Whether to confirm the suggested name before creating the page (defaults to `true`) |
+| `openIfExists` | If a page with `suggestedName` already exists, open it instead of creating a new one |
+| `command` | Expose this template as a command with the given name |
+| `key` | Bind to a keyboard shortcut (requires `command` to also be set) |
+| `mac` | Bind to a Mac-specific keyboard shortcut |
+| `frontmatter` | Frontmatter string to inject into the resulting page |
+| `priority` | Controls load order for page template commands (lower numbers load later) |
+
+### Example: daily note
+
+This template creates a `Daily/YYYY-MM-DD` page when the `Journal: Daily Note` command is run. If the page already exists for today, it opens that page instead.
+
+```markdown
+---
+command: "Journal: Daily Note"
+suggestedName: "Daily/${date.today()}"
+confirmName: false
+openIfExists: true
+tags: meta/template/page
+---
+* |^|
+```
+
+### Example: overriding a built-in template
+
+You can override built-in page templates (such as Quick Note) by defining your own template with the same `command` name. Built-in templates have a higher `priority`, so they register their commands first — your version (without a higher priority set) takes over.
+
+```markdown
+---
+command: Quick Note
+key: "Ctrl-q q"
+suggestedName: "Quick notes/${os.date('%Y-%m-%d/%H-%M-%S')}"
+confirmName: false
+tags: meta/template/page
+---
+This is my quick note version
+```
+
+### Instantiating page templates
+
+Run the **Page: From Template** command to choose a page template and create a new page from it. If you gave your template a `command` name, you can also invoke it directly from the command palette.
+
+## Slash templates
+
+Slash templates are pages tagged with `#meta/template/slash`. They define slash commands that insert templated content at the cursor position when invoked.
+
+### Creating a slash template
+
+<Steps>
+  <Step title="Create a new page">
+    The last component of the page name becomes the slash command name. For example, a page named `Library/Slash Template/action-items` creates a `/action-items` command.
+  </Step>
+  <Step title="Tag it as a slash template">
+    Add `tags: meta/template/slash` to the page's frontmatter.
+  </Step>
+  <Step title="Write the template content">
+    Write the content to insert. Lua expressions (`${...}`) are evaluated when the template is invoked. Use `|^|` to set the cursor position after insertion.
+  </Step>
+</Steps>
+
+### Example: action items section
+
+```markdown
+---
+tags: meta/template/slash
+description: Insert a standard action items section
+---
+# Action items
+* [ ] |^|
+```
+
+This creates a `/action-items` slash command. Typing `/action-items` in any page and selecting it inserts the action items section with the cursor placed in the first task.
+
+### Slash template configuration
+
+| Key | Description |
+|---|---|
+| `description` | Text shown in the slash command completion menu |
+| `priority` | Higher priority commands appear earlier in the list |
+| `onlyContexts` | Only show in certain AST node contexts (advanced) |
+| `exceptContexts` | Show everywhere except these AST node contexts (advanced) |
+
+<CardGroup cols={2}>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Learn the scripting language that powers template expressions.
+  </Card>
+  <Card title="Guides" icon="book-open" href="/guides/journaling">
+    See templates in action with practical journaling and note-taking workflows.
+  </Card>
+</CardGroup>

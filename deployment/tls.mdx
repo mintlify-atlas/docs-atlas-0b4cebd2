@@ -1,0 +1,142 @@
+---
+title: "TLS & HTTPS"
+description: "Why TLS is required for server deployments and how to set it up using Caddy, Tailscale, or a self-signed certificate."
+---
+
+SilverBullet relies on several advanced browser APIs — service workers, the Web Crypto API, and clipboard access — that browsers only enable on secure origins. A secure origin is either `http://localhost` or any `https://` URL.
+
+This is a web platform restriction, not a SilverBullet limitation. If you deploy SilverBullet on a remote server, it must be served over HTTPS.
+
+## Accessing via localhost (no TLS needed)
+
+If you run SilverBullet on the same machine you browse from, `http://localhost:3000` works without any TLS setup.
+
+<Tabs>
+  <Tab title="Run locally">
+    Start SilverBullet on your laptop or desktop and access it at `http://localhost:3000`. No certificate is needed.
+
+    The drawback: your space is only reachable from that one machine.
+  </Tab>
+  <Tab title="SSH tunnel">
+    If SilverBullet runs on a remote server you can SSH into, create a tunnel to make it appear as localhost:
+
+    ```bash
+    ssh -N -L 3002:localhost:3000 user@your-server-ip
+    ```
+
+    Then open `http://localhost:3002` in your browser. Press `Ctrl-C` to stop the tunnel. Add `-f` to run it in the background.
+  </Tab>
+  <Tab title="Caddy local proxy">
+    If you cannot use SSH, install [Caddy](https://caddyserver.com/) on your local machine and create a `Caddyfile`:
+
+    ```
+    localhost:3002 {
+        reverse_proxy your-server-ip:3000
+    }
+    ```
+
+    Run it with:
+
+    ```bash
+    caddy run --config /path/to/Caddyfile
+    ```
+
+    Access SilverBullet at `http://localhost:3002`.
+  </Tab>
+</Tabs>
+
+## Setting up TLS for server deployments
+
+For any deployment accessible from multiple devices or over the internet, you need a TLS certificate.
+
+<Tabs>
+  <Tab title="Caddy + Let's Encrypt">
+    [Caddy](https://caddyserver.com/) automatically obtains and renews TLS certificates from [Let's Encrypt](https://letsencrypt.org/). This is the recommended approach for internet-facing deployments.
+
+    **Prerequisites:**
+    - A server with a public IP address
+    - A domain name with a DNS record pointing to your server
+
+    <Steps>
+      <Step title="Install Caddy">
+        Follow the [Caddy installation guide](https://caddyserver.com/docs/install) for your Linux distribution.
+      </Step>
+      <Step title="Configure Caddy">
+        Edit `/etc/caddy/Caddyfile`:
+
+        ```
+        silverbullet.yourdomain.com {
+            reverse_proxy localhost:3000
+        }
+        ```
+
+        Replace `silverbullet.yourdomain.com` with your domain and `:3000` with your SilverBullet port if different.
+      </Step>
+      <Step title="Restart Caddy">
+        ```bash
+        systemctl restart caddy
+        ```
+
+        On first load, Caddy contacts Let's Encrypt to issue a certificate. This may take a minute.
+      </Step>
+    </Steps>
+
+    Affordable cloud servers for this setup include [Hetzner Cloud](https://hetzner.cloud/) (from ~€3.50/month) and [Vultr](https://www.vultr.com/) (from ~$2.50/month). For a free subdomain, [DuckDNS](https://www.duckdns.org/) gives you a `*.duckdns.org` domain.
+  </Tab>
+  <Tab title="Tailscale">
+    [Tailscale](https://tailscale.com/) is a VPN service that gives each device a stable hostname with a TLS certificate on the `ts.net` domain. It is free for personal use.
+
+    <Steps>
+      <Step title="Install Tailscale on your server">
+        Follow the [Tailscale installation guide](https://tailscale.com/download/linux) for your distribution.
+      </Step>
+      <Step title="Enable HTTPS on your Tailscale node">
+        In the Tailscale admin panel, enable HTTPS for your machine. Tailscale provisions a `ts.net` certificate automatically.
+      </Step>
+      <Step title="Access SilverBullet">
+        Access your instance at `https://your-machine-name.ts.net:3000` from any device on your Tailscale network.
+      </Step>
+    </Steps>
+
+    <Note>
+      Tailscale limits access to devices on your VPN by default, which also adds a layer of network-level access control.
+    </Note>
+  </Tab>
+  <Tab title="Cloudflare Zero Trust">
+    [Cloudflare Zero Trust](https://www.cloudflare.com/products/zero-trust/) provides a free tunnel that exposes your local server over HTTPS without requiring a public IP.
+
+    This requires a free Cloudflare account and a domain name registered with Cloudflare. Cloudflare handles the TLS certificate.
+
+    See the [community guide for Cloudflare Zero Trust](https://community.silverbullet.md/t/use-silverbullet-with-cloudflare-zero-trust/3618) for step-by-step instructions.
+
+    <Warning>
+      If you use Cloudflare Zero Trust's built-in access controls as your authentication layer, ensure you exempt `/service_worker.js` and `/.client/*` from authentication. See the [Authentication](/deployment/authentication) page for details.
+    </Warning>
+  </Tab>
+  <Tab title="Self-signed certificate">
+    You can generate and use a self-signed certificate. Browsers will show a security warning on first access, which you must manually accept.
+
+    This is useful for internal or development deployments where obtaining a domain-validated certificate is not practical.
+
+    Refer to your operating system or proxy documentation for generating a self-signed certificate. The [Caddy self-signed certificates community guide](https://community.silverbullet.md/t/level-1-local-https-with-caddy-and-self-signed-certificates/3531) covers one approach.
+  </Tab>
+</Tabs>
+
+## Community deployment guides
+
+The SilverBullet community has published additional setup guides covering TLS and tunneling:
+
+<CardGroup cols={2}>
+  <Card title="Cloudflare Zero Trust" icon="cloud" href="https://community.silverbullet.md/t/use-silverbullet-with-cloudflare-zero-trust/3618">
+    Free Cloudflare account and domain. Handles TLS and tunneling.
+  </Card>
+  <Card title="Tailscale" icon="shield" href="https://community.silverbullet.md/t/install-silverbullet-on-a-64-bit-debian-ubuntu-raspianos-internet-accessible-via-tailscale/48">
+    Free Tailscale account. Covers TLS, tunneling, and VPN access.
+  </Card>
+  <Card title="Caddy self-signed certs" icon="lock" href="https://community.silverbullet.md/t/level-1-local-https-with-caddy-and-self-signed-certificates/3531">
+    No external accounts required. Manual certificate acceptance needed.
+  </Card>
+  <Card title="Twingate" icon="network-wired" href="https://community.silverbullet.md/t/level-1-access-your-silverbullet-from-outside-your-home-network-using-twingate/3541">
+    Twingate account required. Covers TLS and tunneling.
+  </Card>
+</CardGroup>

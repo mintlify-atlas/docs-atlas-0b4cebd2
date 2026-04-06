@@ -1,0 +1,164 @@
+---
+title: "Installation"
+description: "Deploy SilverBullet on your laptop, a self-hosted server, or via cloud hosting on PikaPods."
+---
+
+SilverBullet is distributed as a single self-contained binary and as a Docker container image. Choose the deployment method that fits your setup.
+
+## Deployment methods
+
+### Localhost (laptop or desktop)
+
+Running SilverBullet locally is the easiest way to get started. The server runs on your own machine and is accessible only from that machine at `http://localhost:3000`.
+
+<Tabs>
+  <Tab title="Docker">
+    ```bash
+    docker run -p 3000:3000 -v ./space:/space ghcr.io/silverbulletmd/silverbullet
+    ```
+
+    This mounts a local `./space` folder as the space root. SilverBullet detects the folder's UNIX owner and runs the server process with the same UID and GID automatically.
+
+    For a persistent background setup, use Docker Compose. Create a `compose.yml` file:
+
+    ```yaml
+    services:
+      silverbullet:
+        image: ghcr.io/silverbulletmd/silverbullet:latest
+        restart: unless-stopped
+        environment:
+          - SB_USER=admin:password
+        volumes:
+          - ./space:/space
+        ports:
+          - 3000:3000
+    ```
+
+    Replace `admin:password` with your own credentials, then run:
+
+    ```bash
+    docker compose up -d
+    ```
+  </Tab>
+  <Tab title="Binary">
+    1. [Download the binary for your platform from GitHub releases](https://github.com/silverbulletmd/silverbullet/releases).
+    2. Unzip the file and make it executable.
+    3. Create a folder for your space and start the server:
+
+    ```bash
+    mkdir space
+    ./silverbullet space
+    ```
+
+    SilverBullet listens on port 3000 by default. To use a different port, pass `-p`:
+
+    ```bash
+    ./silverbullet -p 8080 space
+    ```
+
+    **Available platforms:**
+    - macOS (Intel and Apple Silicon)
+    - Linux x86_64 and arm64 (including Raspberry Pi with 64-bit OS)
+    - Windows 64-bit
+
+    **macOS security note:** SilverBullet binaries are not signed. If macOS refuses to run the binary, go to **System Settings → Privacy & Security** and allow the application. After your first attempt, you will see an option to override the block.
+
+    **Upgrading the binary:**
+
+    ```bash
+    # Upgrade to the latest stable release
+    ./silverbullet upgrade
+
+    # Upgrade to the latest edge build (main branch)
+    ./silverbullet upgrade-edge
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### Self-hosted server
+
+You can run SilverBullet on any Intel-compatible 64-bit or ARM 64-bit machine with terminal access. The server requires very little RAM (a few hundred megabytes), so a Raspberry Pi running a 64-bit Linux OS is sufficient.
+
+Install SilverBullet using either Docker or the binary as described above, then configure TLS.
+
+<Note>
+  TLS is required to access SilverBullet from outside `localhost`. Browsers block service workers — which SilverBullet depends on for offline sync — over plain HTTP on non-localhost origins.
+</Note>
+
+Community guides for common TLS setups:
+
+- **Cloudflare Zero Trust** — free Cloudflare account and domain, covers TLS and tunneling
+- **Tailscale** — free Tailscale account, covers TLS, tunneling, and VPN access
+- **Caddy with self-signed certificates** — no accounts required, requires manually accepting the certificate
+- **Twingate** — requires a Twingate account, covers TLS and tunneling
+
+See the [community guides](https://community.silverbullet.md/c/guides/6) for step-by-step instructions for each option.
+
+**Authentication:** Set the `SB_USER` environment variable to require a username and password:
+
+```bash
+SB_USER=myuser:mypassword ./silverbullet space
+```
+
+In Docker, pass it as an environment variable:
+
+```bash
+docker run -p 3000:3000 \
+  -v ./space:/space \
+  -e SB_USER=myuser:mypassword \
+  ghcr.io/silverbulletmd/silverbullet
+```
+
+---
+
+### Cloud (PikaPods)
+
+If self-hosting is too much overhead, [PikaPods](https://www.pikapods.com/pods?run=silverbullet) runs a managed SilverBullet instance for you. PikaPods handles deployment, upgrades, and backups and exposes SilverBullet over TLS. The cost is approximately $1.50 per month, and new accounts receive $5 in credit.
+
+PikaPods contributes a share of their revenue back to the SilverBullet project.
+
+---
+
+## File system requirements
+
+<Warning>
+  SilverBullet requires a **case-sensitive** file system on the machine where the server runs. This does not affect the clients connecting via a browser — only the server's storage location matters.
+
+  Running SilverBullet on a case-insensitive file system (the default on macOS and Windows) can cause silent data issues: pages with names that differ only by case may collide or fail to save correctly.
+</Warning>
+
+**Linux** uses a case-sensitive file system by default and is the recommended server operating system.
+
+**macOS** uses APFS, which is case-insensitive by default. If you need to run SilverBullet on macOS, create a new APFS Volume with case sensitivity enabled in Disk Utility and point SilverBullet at that volume.
+
+**Windows** NTFS is case-insensitive by default. Running SilverBullet on Windows is not recommended, though it is possible to [mark specific folders as case-sensitive](https://www.howtogeek.com/354220/how-to-enable-case-sensitive-folders-on-windows-10/).
+
+### NAS and sync engines
+
+Storing your space on a NAS or syncing it with a tool like SyncThing should work in most cases. If you encounter unreliable saves or sync conflicts, switch to a local file system to isolate the issue.
+
+SilverBullet's sync engine relies on accurate last-modified timestamps. If your file system or sync process modifies timestamps without changing file content, this can cause sync problems.
+
+---
+
+## Docker image details
+
+The SilverBullet Docker image is published on both [GHCR](https://github.com/silverbulletmd/silverbullet/pkgs/container/silverbullet) and [Docker Hub](https://hub.docker.com/r/zefhemel/silverbullet). Use whichever registry you prefer.
+
+**Available architectures:** 64-bit Intel, 64-bit ARM, 32-bit ARM (ARMv7 for older Raspberry Pi models running 32-bit Linux).
+
+**Release channels:**
+
+| Tag | Description |
+|---|---|
+| `:latest` | Latest stable release |
+| `:v2` | Latest edge build (tracks the `main` branch) |
+
+**Key container settings:**
+
+- Port: `3000` (map with `-p 3000:3000`)
+- Space volume: `/space` (map with `-v /path/to/notes:/space`)
+- `SB_USER=username:password` — enables basic authentication (recommended for any non-localhost setup)
+- `PUID` / `PGID` — override the UID/GID the server process runs as (defaults to the owner of the mounted `/space` folder)

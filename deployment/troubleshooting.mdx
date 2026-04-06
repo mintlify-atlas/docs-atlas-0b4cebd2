@@ -1,0 +1,169 @@
+---
+title: "Troubleshooting"
+description: "Diagnose and fix common SilverBullet issues including sync problems, file system errors, authentication lockouts, and browser cache issues."
+---
+
+Start by checking your server logs for anything suspicious. If you still can't resolve the issue, ask the [SilverBullet community](https://community.silverbullet.md/) for help.
+
+## Disabling features for diagnosis
+
+You can isolate problems by temporarily disabling specific client features. Append one or more query parameters to any SilverBullet URL:
+
+| Parameter             | Effect                                       |
+| --------------------- | -------------------------------------------- |
+| `?disableSync=1`      | Disables synchronization with the server     |
+| `?disableSpaceLua=1`  | Disables all Space Lua scripts               |
+| `?disableSpaceStyle=1`| Disables all Space Style (custom CSS)        |
+| `?disablePlugs=1`     | Disables all non-built-in plugs              |
+
+You can combine them: `http://localhost:3000/?disableSpaceLua=1&disableSpaceStyle=1`
+
+## Common issues
+
+<AccordionGroup>
+  <Accordion title="Pages won't sync or sync is stuck">
+    Sync issues are usually caused by one of the following:
+
+    - The server is unreachable or returning errors
+    - A Space Lua script or plug is crashing during sync
+    - An external sync tool (SyncThing, NAS) is touching file timestamps
+
+    **Steps to diagnose:**
+
+    1. Open your server logs and look for errors.
+    2. Try disabling sync first to confirm the issue is sync-related: `?disableSync=1`
+    3. Try disabling Space Lua to rule out script errors: `?disableSpaceLua=1`
+    4. If you are using an external sync engine (SyncThing, a NAS, etc.), stop it temporarily and test again. SilverBullet relies on accurate `last modified` timestamps — external tools that touch timestamps without changing content will cause spurious sync cycles.
+
+    **Reindex your space:**
+
+    If your index is out of sync, open the command palette and run `Space: Reindex`. This rebuilds the entire space index from scratch.
+
+    **Trigger a manual sync:**
+
+    Use the `Sync: Space` command from the command palette to force an immediate full sync.
+  </Accordion>
+
+  <Accordion title="Case sensitivity problems on Mac or Windows">
+    SilverBullet assumes a **case-sensitive** file system. Running it on macOS (APFS) or Windows (NTFS) — both case-insensitive by default — can cause silent failures.
+
+    Symptoms include:
+    - Editing a page by a name that doesn't match its filename casing
+    - Unable to create or rename pages that conflict with existing files at different casing
+    - Links resolving incorrectly
+
+    **Recommended fix:** Run SilverBullet on Linux, which uses a case-sensitive file system by default.
+
+    **macOS workaround:** Create a new APFS volume with case sensitivity enabled and store your space there.
+
+    **Windows workaround:** Windows allows marking specific folders as case-sensitive via `fsutil`. Running SilverBullet on Windows is not recommended for production use.
+
+    <Note>
+      This restriction applies to the server's file system only. The clients (browsers) connecting to it are unaffected.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Slow indexing or poor performance on large spaces">
+    Indexing is CPU-bound and runs at startup and during background sync. For large spaces (thousands of pages), the initial index can take several minutes.
+
+    **Things to check:**
+
+    - Run `Space: Reindex` only when necessary — it rebuilds everything from scratch.
+    - Check whether any Space Lua scripts are doing expensive operations on every page load. Try `?disableSpaceLua=1` to measure the difference.
+    - If you have large binary files (PDFs, videos) in your space, exclude them from sync using `sync.ignore` in your `CONFIG` page:
+
+    ```lua
+    config.set("sync.ignore", {
+      "*.pdf",
+      "*.mp4"
+    })
+    ```
+
+    - Avoid storing your space on a NAS or networked file system if you experience persistent slowness; local storage is significantly faster.
+  </Accordion>
+
+  <Accordion title="Browser issues: PWA, service worker, or blank page">
+    SilverBullet is an offline-first PWA that relies heavily on a service worker and IndexedDB. Stale cached assets or a corrupted service worker can cause a blank page or outdated UI.
+
+    **Full client reset:**
+
+    Append `?resetClient=1` to any SilverBullet URL. You will be asked to confirm. This will:
+
+    1. Wipe all locally cached data from IndexedDB
+    2. Unregister the service worker
+    3. Reload and trigger a full resync from the server
+
+    <Warning>
+      A client reset deletes your local cache. Any changes that have not yet synced to the server will be lost. Make sure your server is reachable before resetting.
+    </Warning>
+
+    **If the service worker is unresponsive:**
+
+    Open your browser's DevTools, go to **Application > Service Workers**, and click **Unregister** for the SilverBullet service worker. Then reload the page.
+  </Accordion>
+
+  <Accordion title="Locked out or forgot password">
+    If you've been locked out due to too many failed attempts, wait for the lockout period to expire (default: 60 seconds). You can adjust this with `SB_LOCKOUT_TIME`.
+
+    If you have forgotten your password entirely:
+
+    1. Stop the SilverBullet server.
+    2. Update the `SB_USER` environment variable with a new password.
+    3. Restart the server.
+
+    For Docker, update the `-e SB_USER=username:newpassword` flag or the environment variable in your `docker-compose.yml` and restart the container:
+
+    ```bash
+    docker compose down && docker compose up -d
+    ```
+  </Accordion>
+
+  <Accordion title="Authentication proxy: PWA features broken">
+    If you use an authentication proxy (Authelia, Authentik, Cloudflare Zero Trust, etc.) and SilverBullet appears broken — offline mode not working, missing UI, errors on load — the proxy is likely blocking requests to paths that must be publicly accessible.
+
+    **Required bypass paths:**
+
+    - `/service_worker.js`
+    - `/.client/*`
+
+    These paths serve static client code only, not your space content. Blocking them breaks the service worker and PWA functionality.
+
+    See the [Authentication](/deployment/authentication) page for an Authelia configuration example.
+  </Accordion>
+
+  <Accordion title="NAS or sync engine causing file conflicts">
+    Storing your space on a NAS or syncing with a tool like SyncThing should work in most cases, but can cause issues if:
+
+    - The NAS does not persist `last modified` timestamps accurately
+    - The sync tool updates timestamps when syncing without changing file content
+
+    SilverBullet's sync engine uses `last modified` timestamps to detect changes. Unreliable timestamps lead to spurious sync cycles, duplicate entries, or conflicts.
+
+    **To isolate the issue:**
+
+    1. Stop the external sync engine.
+    2. Switch to a local file system temporarily.
+    3. Test whether the problem persists.
+
+    If it resolves, the external sync tool is the cause. Check its configuration for options to preserve timestamps.
+  </Accordion>
+</AccordionGroup>
+
+## Server-side debugging
+
+Enable additional logging with these environment variables:
+
+<ParamField path="SB_HTTP_LOGGING" type="string">
+  Set to any non-empty value to log all HTTP requests on the server. Useful for diagnosing proxy configuration and authentication issues.
+</ParamField>
+
+<ParamField path="SB_LOG_PUSH" type="string">
+  When set, asks connected clients to push their browser logs to the server. Useful for debugging client-side errors without access to the browser DevTools.
+</ParamField>
+
+## Getting help
+
+If the steps above don't resolve your issue:
+
+- Check the [SilverBullet community forum](https://community.silverbullet.md/) for similar reports and solutions.
+- Search or open an issue on [GitHub](https://github.com/silverbulletmd/silverbullet/issues).

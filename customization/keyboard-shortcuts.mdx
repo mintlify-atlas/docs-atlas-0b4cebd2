@@ -1,0 +1,140 @@
+---
+title: "Keyboard Shortcuts"
+description: "An overview of SilverBullet's keyboard shortcut system and how to define custom key bindings with Space Lua."
+---
+
+SilverBullet uses [CodeMirror](https://codemirror.net) for its editor, which handles most keyboard input. On top of that, every [command](/space-lua/overview) can be assigned one or more keyboard shortcuts — either when you define the command, or by updating an existing one.
+
+Open the **Command Palette** (`Ctrl-k` / `Cmd-k`) to see all available commands and their currently assigned shortcuts.
+
+## Modifier keys
+
+Keyboard shortcuts combine modifier keys with a letter, number, or special character. The following modifiers are supported:
+
+| Modifier | Description |
+|---|---|
+| `Alt` | Alt / Option key |
+| `Ctrl` | Control key |
+| `Shift` | Shift key |
+| `Cmd` | Command key (macOS only) |
+| `Meta` | Windows / Super key |
+| `Mod` | Alias for `Ctrl` on Linux/Windows, `Cmd` on macOS |
+
+Combine them with a key using hyphens: `Mod-Shift-t`, `Ctrl-Alt-f`, etc.
+
+<Note>
+`Alt-letter` shortcuts (e.g. `Alt-a`) are not allowed by CodeMirror because they conflict with international keyboard input methods.
+</Note>
+
+## Built-in combo shortcuts
+
+SilverBullet reserves two prefix keys for multi-stroke "combo" shortcuts:
+
+| Combo | Action |
+|---|---|
+| `Mod-.` | Prefix for [Outlines](/concepts/tasks-and-outlines) commands |
+| `Ctrl-q q` | Create a Quick Note |
+| `Ctrl-q t` | Run the **Page: From Template** command |
+| `Ctrl-g h` | Navigate to the index (home) page |
+
+## Constraints
+
+SilverBullet cannot override browser-reserved shortcuts (e.g. `Ctrl-t` / `Cmd-t` for a new browser tab). If a shortcut you define conflicts with a browser shortcut, the browser takes priority.
+
+## Defining custom shortcuts
+
+### When defining a new command
+
+Specify `key` and optionally `mac` directly in your `command.define` call:
+
+```lua
+command.define {
+  name = "My command",
+  key = "Ctrl-Shift-t",
+  run = function()
+    editor.flashNotification "Hello world"
+  end
+}
+```
+
+To assign multiple shortcuts to the same command, pass a table:
+
+```lua
+command.define {
+  name = "My command",
+  key = {"Ctrl-Shift-t", "Ctrl-Shift-o"},
+  run = function()
+    editor.flashNotification "Hello world"
+  end
+}
+```
+
+Use `mac` to set a separate shortcut for macOS:
+
+```lua
+command.define {
+  name = "My command",
+  key = "Ctrl-Shift-t",
+  mac = "Cmd-Shift-t",
+  run = function()
+    editor.flashNotification "Hello world"
+  end
+}
+```
+
+### Reassigning a shortcut on an existing command
+
+Use `command.update` to change the key binding of a command that already exists (including built-in commands):
+
+```lua
+command.update {
+  name = "Task: Cycle State",
+  key = "Ctrl-Shift-t",
+}
+```
+
+`command.update` accepts the same `key` and `mac` fields as `command.define`.
+
+## Disabling keyboard shortcuts
+
+To remove a keyboard shortcut from an existing command, set it to an empty string:
+
+```lua
+command.update {
+  name = "Task: Cycle State",
+  key = "",
+  mac = ""
+}
+```
+
+This is useful when a built-in shortcut conflicts with something you want to use for your own command.
+
+## Where to put custom shortcut definitions
+
+Place your `command.define` and `command.update` calls inside a `space-lua` fenced code block on any page. A dedicated `CONFIG` page is a good convention for keeping customizations organized:
+
+````markdown
+```space-lua
+command.update {
+  name = "Task: Cycle State",
+  key = "Ctrl-Shift-t",
+}
+
+command.define {
+  name = "My Workflow: Start",
+  key = "Mod-Shift-w",
+  run = function()
+    editor.navigate "Daily/${date.today()}"
+  end
+}
+```
+````
+
+<CardGroup cols={2}>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Learn how to write Space Lua scripts to define commands and shortcuts.
+  </Card>
+  <Card title="Space Style" icon="paintbrush" href="/customization/space-style">
+    Customize the visual appearance of your space with custom CSS.
+  </Card>
+</CardGroup>

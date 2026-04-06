@@ -1,0 +1,158 @@
+---
+title: "Tasks and outlines"
+description: "Create and track tasks with checkbox syntax, query them across your entire space, and organize content with nested outlines."
+---
+
+## Tasks
+
+Tasks in SilverBullet use standard Markdown checkbox syntax. A task is a list item prefixed with `- [ ]` (open) or `- [x]` (done):
+
+```markdown
+- [ ] Buy groceries #shopping
+- [x] Write weekly review
+- [ ] Schedule team sync [due: 2024-03-20]
+```
+
+Click any checkbox in live preview to toggle it between done and not done. SilverBullet updates the underlying Markdown file immediately.
+
+All tasks are automatically indexed as objects in the Object Index, so they can be queried across your entire space regardless of which page they live on.
+
+## Task metadata
+
+You can attach metadata to individual tasks using inline attribute syntax or hashtags:
+
+```markdown
+- [ ] Ship the feature [due: 2024-04-01][priority: 1] #q2
+- [ ] Write tests [estimate: 2] #backend
+- [ ] Update docs [assignee: alice]
+```
+
+Attributes use the `[key: value]` syntax (or `[key:: value]` for Obsidian/LogSeq compatibility). Values are parsed as YAML, so numbers, strings, and arrays are all valid.
+
+You can also assign tags to tasks using frontmatter on the containing page, which are then inherited via the `itags` attribute.
+
+## Custom task states
+
+Beyond `[ ]` and `[x]`, tasks support custom states for richer workflows:
+
+```markdown
+- [NOT STARTED] Research the problem
+- [IN PROGRESS] Draft the proposal
+- [DONE] Get approval
+```
+
+When you click a checkbox with a custom state, SilverBullet cycles through all task states it has seen in your space. To define states explicitly and enable auto-complete, use the `taskState` API in a `space-lua` block.
+
+<Note>
+  Task state text cannot contain `:` to avoid ambiguity with the inline attribute syntax.
+</Note>
+
+## Querying tasks across your space
+
+Because tasks are indexed objects, you can aggregate them from anywhere in your space using a Lua query expression. Place this in any page to render a live list of open tasks:
+
+```lua
+${template.each(query[[
+  from index.tag "task"
+  where not _.done
+  limit 10
+]], templates.taskItem)}
+```
+
+Filter by tag, due date, or any custom attribute:
+
+```lua
+${query[[
+  from index.tag "task"
+  where not _.done and _.tags ~= nil and table.contains(_.tags, "shopping")
+  order by _.ref
+]]}
+```
+
+Query tasks due before a specific date:
+
+```lua
+${query[[
+  from index.tag "task"
+  where not _.done and _.due ~= nil and _.due < "2024-04-01"
+  order by _.due
+]]}
+```
+
+<Tip>
+  The `_.itags` attribute includes tags inherited from the containing page, so tasks on a page tagged `#project` automatically carry that tag without explicit task-level tagging.
+</Tip>
+
+## Linked tasks
+
+When a task contains a wiki link, SilverBullet treats it as a _linked task_ — a task associated with a particular page. This is useful for tracking action items tied to a person, project, or meeting:
+
+```markdown
+- [ ] Follow up with [[Alice]] about the proposal [due: 2024-03-25]
+- [ ] Review [[projects/q1-review]] before the board meeting
+```
+
+Linked tasks appear in the Linked Mentions section of the page they reference, and can be queried using the `toPage` attribute on link objects.
+
+## Outlines
+
+An outline is a nested bulleted list. SilverBullet provides a set of `Outline` commands to move and reorganize items without manual cut-and-paste:
+
+```markdown
+* Introduction
+  * Context
+  * Problem space
+* Problem statement
+  * Problem A
+    * Sub-problem 1
+    * Sub-problem 2
+  * Problem B
+* Solution
+* Conclusion
+```
+
+These commands also work on headings (moving entire sections) and table rows.
+
+### Moving items
+
+| Command | Shortcut | Action |
+|---|---|---|
+| `Outline: Move Up` | `Alt+ArrowUp` | Move the current item up |
+| `Outline: Move Down` | `Alt+ArrowDown` | Move the current item down |
+| `Outline: Move Right` | `Mod+. l` | Indent one level deeper |
+| `Outline: Move Left` | `Mod+. h` | Outdent one level higher |
+
+<Note>
+  `Mod` is `Cmd` on Mac and `Ctrl` on Linux and Windows.
+</Note>
+
+When you move a list item, all of its children move with it. When you move a heading, the entire section (heading plus all content until the next same-level heading) moves together. Indenting or outdenting a heading adjusts its level — for example, `##` becomes `###` when indented.
+
+### Folding
+
+Fold sections to reduce visual clutter while working on complex outlines:
+
+| Command | Shortcut | Action |
+|---|---|---|
+| `Outline: Toggle Fold` | `Mod+. Mod+.` | Toggle fold on the current item |
+| `Outline: Fold` | — | Fold the current item's children |
+| `Outline: Unfold` | — | Unfold the current item's children |
+| `Outline: Fold All` | — | Fold all sections in the page |
+| `Outline: Unfold All` | — | Unfold all sections in the page |
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Objects and tags" icon="tags" href="/concepts/objects-and-tags">
+    Understand how tasks are stored as queryable objects.
+  </Card>
+  <Card title="Space Lua query" icon="code" href="/space-lua/lua-integrated-query">
+    Write queries to aggregate tasks and other data.
+  </Card>
+  <Card title="Markdown" icon="file-text" href="/concepts/markdown">
+    Learn the full Markdown syntax SilverBullet supports.
+  </Card>
+  <Card title="Task management guide" icon="list-checks" href="/guides/task-management">
+    A practical guide to managing tasks in SilverBullet.
+  </Card>
+</CardGroup>

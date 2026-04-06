@@ -1,0 +1,130 @@
+---
+title: "Space Lua overview"
+description: "Space Lua is SilverBullet's embedded Lua scripting environment. Write active code blocks and inline expressions to generate dynamic content across your entire space."
+---
+
+Space Lua is a custom dialect of [Lua](https://lua.org/) embedded directly in SilverBullet. It adds two first-class features to your Markdown pages: persistent **definitions** that are active across your entire space, and **inline expressions** that render live in the editor.
+
+## Two core features
+
+### Definitions
+
+A `space-lua` fenced code block defines functions and variables that are available **everywhere in your space** — not just on the page where the block appears. This is what the _Space_ in Space Lua refers to.
+
+```lua
+-- space-lua
+function greet(name)
+  return "Hello, " .. name .. "!"
+end
+```
+
+<Note>
+  The examples throughout this documentation use `lua` as the code block language tag to avoid activating the script on the documentation site itself. When you use these snippets in your own space, replace `lua` with `space-lua`.
+</Note>
+
+Each `space-lua` block has its own local scope. Variables and functions not explicitly declared `local` become global and are accessible from any page.
+
+### Expressions
+
+The `${expression}` syntax evaluates any Lua expression and renders its result inline during Live Preview. Use it to call your defined functions, run queries, or embed widgets.
+
+Once you define `greet` above, you can use it anywhere on any page:
+
+```
+The current greeting is: ${greet("World")}
+```
+
+This live-previews to: `The current greeting is: Hello, World!`
+
+This mechanism is commonly used with [Lua Integrated Query](/space-lua/lua-integrated-query) and [Widgets](/space-lua/widgets).
+
+## Load order
+
+All `space-lua` blocks are loaded when your client boots or when you run the **System: Reload** command (`Ctrl-Alt-r`). Scripts are indexed as part of the Object Index with the `space-lua` tag.
+
+To control the order in which scripts load, add a `-- priority: N` comment to the first line of a block. Scripts with a **higher** priority number load **earlier**. Scripts without a priority comment load last.
+
+```lua
+-- space-lua
+-- priority: 10
+-- This runs before scripts with no priority set
+local mySetup = {}
+```
+
+The Library/Std library uses these priority levels as a convention:
+
+| Priority | Purpose |
+|---|---|
+| `100` | Config schema definitions |
+| `50` | Core globals like `template.*` APIs |
+| `10` | Standard library definitions that can be overridden |
+| (none) | User scripts, loaded last |
+
+To override a library definition, write a script with a **lower** priority (or omit the priority entirely).
+
+## Space Lua vs standard Lua
+
+Space Lua is a **custom Lua implementation**. It does not use the official Lua binary, LuaJIT, or a WebAssembly port. SilverBullet implements the Lua runtime directly in TypeScript, which runs in the browser. This approach enables deep integration with the browser and SilverBullet's APIs, as well as features like code completion and jump-to-definition support.
+
+The implementation targets **Lua 5.4** compatibility and is approximately 95% compatible with standard Lua. A few things are deliberately missing:
+
+- **Coroutines** — not planned; not useful in this context
+- `_ENV` — planned but not yet implemented
+- Hexadecimal numeric literals with fractional parts or binary exponents
+
+In addition to standard Lua, Space Lua adds:
+
+1. [Lua Integrated Query](/space-lua/lua-integrated-query) — an SQL/LINQ-inspired query language embedded in Lua syntax
+2. [Thread locals](/space-lua/overview#thread-locals) — per-request context via the `_CTX` global
+
+### String-to-number conversion quirk
+
+Space Lua converts strings to numbers following standard Lua rules. Arithmetic on an invalid string throws a Lua error; `tonumber(s)` returns `nil` on failure. Hexadecimal floats with a `p` exponent (e.g., `0x1.8p1`) are supported; hexadecimal floats with a fractional part but **no** exponent are not (JavaScript's number parser does not support them either).
+
+## Thread locals
+
+The `_CTX` global provides access to per-request context. It is experimental and currently exposes one key:
+
+- `_CTX.currentPage` — the `PageMeta` object for the currently open page
+
+```lua
+-- space-lua
+function currentPageName()
+  return _CTX.currentPage.name
+end
+```
+
+## Conventions
+
+- Use **2 spaces** for indentation.
+- Use **camelCase** for all variable and function names (`myFunction`, not `my_function`).
+- Use table namespacing to avoid polluting the global namespace:
+
+```lua
+-- space-lua
+myTools = myTools or {}
+
+function myTools.formatDate(ts)
+  return os.date("%Y-%m-%d", ts)
+end
+```
+
+- Use `local` for anything that does not need to be accessible outside its block.
+- Use singular names for API namespaces (`widget`, `tag`) and plural names for collections (`widgets`).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Lua Integrated Query" icon="database" href="/space-lua/lua-integrated-query">
+    Query pages, tags, and objects with an SQL-inspired syntax embedded in Lua.
+  </Card>
+  <Card title="Standard library" icon="book-open" href="/space-lua/standard-library">
+    Built-in Lua modules and SilverBullet-specific globals available in every script.
+  </Card>
+  <Card title="Widgets" icon="layout-panel-left" href="/space-lua/widgets">
+    Render custom HTML and Markdown elements inline in your pages.
+  </Card>
+  <Card title="JavaScript interop" icon="js" href="/space-lua/javascript-interop">
+    Call browser APIs, import JS modules, and work with the DOM from Lua.
+  </Card>
+</CardGroup>

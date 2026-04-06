@@ -1,0 +1,121 @@
+---
+title: "Space and pages"
+description: "Understand how SilverBullet organizes your notes into a space, pages, and folders — and how links connect everything together."
+---
+
+## What is a space?
+
+A _space_ is SilverBullet's term for a workspace or instance — what [Obsidian](https://obsidian.md) calls a vault or [LogSeq](https://logseq.com) calls a graph. In practical terms, a space is a folder on disk containing Markdown files, assets, and configuration.
+
+Because a space is just a directory of plain files, you can manage it with any tool you like. You can back it up with `rsync`, version it with Git, or open individual files in any text editor — you don't have to use SilverBullet exclusively.
+
+Every space contains at minimum:
+
+- `index.md` — the default landing page
+- `CONFIG.md` — space-wide configuration written in Lua
+
+## Pages
+
+Pages are the primary building block of a space. Each page is a Markdown file stored on disk. You create and edit pages directly in SilverBullet's editor, and the files are kept in sync on the server in real time.
+
+Page names are relatively free-form but must follow a few rules — for example, they cannot contain certain reserved characters. Every page can contain prose, structured metadata via frontmatter, tasks, links, and embedded Lua expressions.
+
+### Two types of pages
+
+<Tabs>
+  <Tab title="Content pages">
+    These are the core of your space — your notes, journals, and documents. You navigate between them using the **Page Picker** (`Ctrl+k` / `Cmd+k`).
+  </Tab>
+  <Tab title="Meta pages">
+    Meta pages hold configuration, templates, scripts, and library files that define how your space behaves. They are tagged `#meta` and accessed via the **Meta Picker** (`Ctrl+Shift+k` / `Cmd+Shift+k`). Many meta pages come from the standard Library.
+  </Tab>
+</Tabs>
+
+## Folders
+
+Folders let you organize pages into a hierarchy. SilverBullet has no explicit folder-creation UI — you create a folder by including a `/` in your page name:
+
+```
+projects/q1-review
+journal/2024/march
+people/alice
+```
+
+SilverBullet creates the necessary directory structure on disk automatically. Note that folders are not the primary organizational tool in SilverBullet — tags are often a more flexible alternative for grouping and querying pages across folder boundaries.
+
+## Navigating your space
+
+### Page Picker
+
+Press `Ctrl+k` (or `Cmd+k` on Mac) to open the Page Picker. Start typing to fuzzy-search across all content page names in your space and jump to any page instantly.
+
+### Full-text search
+
+Use `Ctrl+Shift+f` (or `Cmd+Shift+f`) to search the full text of all pages in your space. Results show the surrounding context so you can identify the right match quickly.
+
+## Links
+
+Links are what turn isolated pages into a connected knowledge graph. SilverBullet supports several link formats.
+
+### Wiki links
+
+The most common format is the wiki link:
+
+```markdown
+[[Page Name]]
+[[Page Name|Display text]]
+[[projects/q1-review]]
+[[Page Name#Section heading]]
+```
+
+As you type `[[`, SilverBullet auto-completes page names from your space. Links to meta pages can be written with a caret prefix (`[[^Library/Std]]`) to scope auto-complete to meta pages only.
+
+### Markdown links
+
+Standard Markdown link syntax works for both internal and external URLs:
+
+```markdown
+[SilverBullet website](https://silverbullet.md)
+[See the review](<projects/q1-review>)
+```
+
+### Linked mentions (backlinks)
+
+Every page automatically shows a **Linked Mentions** section at the bottom listing all pages that link to it. This is powered by the Object Index, which tracks every link in your space.
+
+<Note>
+  Linked Mentions make every link bi-directional. Page A links to page B, and page B automatically shows A in its backlinks — no manual maintenance required.
+</Note>
+
+Linked mentions can be queried directly in Lua:
+
+```lua
+${query[[
+  from l = tags.link
+  where l.toPage == "Some Page"
+  order by l.pageLastModified desc
+]]}
+```
+
+You can disable the Linked Mentions widget in `CONFIG.md`:
+
+```lua
+config.set("std.widgets.linkedMentions.enabled", false)
+```
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Objects and tags" icon="tags" href="/concepts/objects-and-tags">
+    Learn how SilverBullet extracts structured data from your pages.
+  </Card>
+  <Card title="Markdown" icon="file-text" href="/concepts/markdown">
+    Explore the Markdown syntax and extensions SilverBullet supports.
+  </Card>
+  <Card title="Tasks and outlines" icon="list-checks" href="/concepts/tasks-and-outlines">
+    Track work with tasks and organize content with outlines.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get SilverBullet running in minutes.
+  </Card>
+</CardGroup>

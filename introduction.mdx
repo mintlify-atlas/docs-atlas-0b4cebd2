@@ -1,0 +1,55 @@
+---
+title: "Introduction"
+description: "SilverBullet is a self-hosted, browser-based personal knowledge management platform built on Markdown and powered by Lua scripting."
+---
+
+SilverBullet is a programmable, private, open source, self-hosted personal knowledge management platform. You write in Markdown, navigate with bi-directional links, and extend everything with Space Lua — all running in your browser, synced locally, with no third-party services required.
+
+## Key capabilities
+
+**Live preview editor** — SilverBullet renders Markdown as you type. Headings, links, tasks, and code blocks display in place, giving you a clean reading experience without leaving edit mode.
+
+**Bi-directional links** — Type `[[Page Name]]` to link any two pages. Every page automatically shows back-references from pages that link to it, turning your notes into a connected wiki.
+
+**Task management** — Checkbox tasks (`- [ ] ...`) are indexed across your entire space. Query them from any page to build cross-space task dashboards.
+
+**Queryable object index** — Every page, task, tag, and frontmatter attribute is automatically indexed. You can query this index using the Lua Integrated Query language to generate dynamic content inline.
+
+**Space Lua scripting** — SilverBullet's built-in Lua dialect lets you define custom commands, page templates, slash commands, and widgets. Scripts live inside your space as code blocks and are active across every page.
+
+**PWA and offline support** — The client is a Progressive Web App. It syncs your entire space into browser-local storage so everything works offline. Install it to your dock or home screen from any Chrome-based browser, Safari, or Android.
+
+**Plug-in system** — TypeScript-based plugs run in sandboxed web workers. SilverBullet ships with built-in plugs for tasks, search, Git, and more. You can write your own or install community plugs.
+
+## Architecture
+
+SilverBullet has a two-tier architecture: a Go server that stores and serves your space, and a TypeScript browser client that handles editing, sync, and scripting.
+
+| Layer | Technology |
+|---|---|
+| Editor | [CodeMirror 6](https://codemirror.net/) with custom extensions |
+| UI framework | [Preact](https://preactjs.com) |
+| Frontend build | [ESBuild](https://esbuild.github.io) |
+| Server | Go (single self-contained binary) |
+| Scripting | Lua (Space Lua dialect, runs in browser) |
+
+The client is **local-first**: on startup it syncs all space content to browser storage (IndexedDB), then reads and writes locally. Changes sync back to the server in the background. This means SilverBullet is fully functional offline — unplugging your network cable does not interrupt your work.
+
+The server is intentionally minimal. It stores Markdown files on disk, exposes an HTTP API, and optionally runs a headless Chromium instance for the Runtime API. It requires very few resources — a Raspberry Pi with a 64-bit OS is sufficient.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Get from zero to a running SilverBullet instance in five minutes.
+  </Card>
+  <Card title="Installation" icon="server" href="/install">
+    Deploy via Docker, single binary, or cloud hosting on PikaPods.
+  </Card>
+  <Card title="Spaces and pages" icon="book" href="/concepts/space-and-pages">
+    Understand how SilverBullet organizes your content into spaces and pages.
+  </Card>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Write Lua scripts that generate dynamic content, build widgets, and automate your space.
+  </Card>
+</CardGroup>

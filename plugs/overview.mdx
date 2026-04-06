@@ -1,0 +1,117 @@
+---
+title: "Plugs"
+description: "Plugs are SilverBullet's lower-level TypeScript extension mechanism. Most of SilverBullet's core functionality is itself implemented as plugs."
+---
+
+Plugs are the foundation of SilverBullet's extensibility. Every major feature — editing, indexing, syncing, and more — is itself implemented as a plug. You can install third-party plugs or write your own to extend SilverBullet with capabilities that TypeScript enables but Space Lua cannot.
+
+<Note>
+  For most users, [Space Lua](/space-lua/overview) is the recommended way to extend SilverBullet. It is easier to write, requires no build step, and covers the vast majority of use cases. Plugs are for TypeScript developers who need lower-level access or want to publish reusable extensions.
+</Note>
+
+## How plugs work
+
+Each plug runs in its own **sandboxed web worker** — an isolated JavaScript environment in the browser. Plugs communicate with SilverBullet exclusively through **syscalls**: a structured API that exposes a wide range of functionality including the editor, the file system, the event bus, and more.
+
+Because plugs run in isolated workers, a misbehaving plug cannot crash SilverBullet. Plugs can be **loaded, unloaded, and updated without restarting** SilverBullet.
+
+## What plugs can do
+
+- **Define commands and keybindings** — add entries to the command palette and bind them to keyboard shortcuts
+- **Respond to events** — react to editor lifecycle events (`editor:pageLoaded`, `editor:pageSaved`, etc.) or system events (`page:index`, `cron:secondPassed`)
+- **Run recurring and background tasks** — use the `cron:secondPassed` event or message queue syscalls for periodic work
+- **Emit custom events** — define your own event names so that other plugs or Space Lua scripts can hook into your plug's extension points
+- **Read and write pages and files** — use the `space` syscall namespace to list, read, write, and delete pages and attachments
+- **Interact with the editor** — use the `editor` syscall namespace to get and set text, navigate pages, show notifications, open dialogs, and more
+
+## Syscall namespaces
+
+Plugs import syscalls from `@silverbulletmd/silverbullet/syscalls`. The available namespaces are:
+
+| Namespace | Purpose |
+|---|---|
+| `editor` | Read/write editor text, navigate pages, show notifications and dialogs |
+| `space` | List, read, write, and delete pages and files in the space |
+| `system` | Invoke plug functions, list commands and syscalls, reload config |
+| `events` | Subscribe to and emit events on the SilverBullet event bus |
+| `datastore` | Read and write structured data in SilverBullet's key-value store |
+| `clientStore` | Persist client-side state across sessions |
+| `mq` | Message queue for background and deferred processing |
+| `markdown` | Parse Markdown and work with the AST |
+| `codeWidget` | Register code block renderers |
+| `shell` | Run shell commands (server-side only) |
+| `asset` | Embed static assets in the plug bundle |
+| `config` | Read SilverBullet configuration values |
+
+## Plug distribution
+
+Plugs are distributed as self-contained JavaScript bundles with a `.plug.js` extension. SilverBullet loads:
+
+1. **Built-in plugs** — bundled with SilverBullet itself; loaded automatically
+2. **Third-party plugs** — stored in the `_plug/` folder in your [space](/concepts/space-and-pages)
+
+To install a third-party plug, add a reference to your `PLUGS` page in your space:
+
+```yaml
+- github:MrMugame/silversearch/silversearch.plug.js
+- ghr:joekrill/silverbullet-treeview
+- https://mydomain.com/myplugin.plug.js
+```
+
+SilverBullet downloads the plug, stores it in `_plug/`, and loads it within seconds — no restart required.
+
+## Community plugs
+
+<CardGroup cols={2}>
+  <Card title="SilverSearch" icon="magnifying-glass" href="https://github.com/MrMugame/silversearch">
+    Full-text search with a richer query interface than the built-in search.
+  </Card>
+  <Card title="TreeView" icon="folder-tree" href="https://github.com/joekrill/silverbullet-treeview">
+    Adds a collapsible file tree panel to the SilverBullet UI.
+  </Card>
+  <Card title="GraphView" icon="diagram-project" href="https://github.com/deepkn/silverbullet-graphview">
+    Visualizes page links as an interactive graph, similar to Obsidian's graph view.
+  </Card>
+  <Card title="Mermaid" icon="chart-gantt" href="https://github.com/silverbulletmd/silverbullet-mermaid">
+    Renders Mermaid diagrams inside fenced code blocks.
+  </Card>
+  <Card title="PDF" icon="file-pdf" href="https://github.com/MrMugame/silverbullet-pdf">
+    View and annotate PDF documents using PDF.js.
+  </Card>
+  <Card title="Excalidraw" icon="pencil" href="https://github.com/LogeshG5/silverbullet-excalidraw">
+    Embed and edit Excalidraw diagrams directly in your pages.
+  </Card>
+  <Card title="Draw.io" icon="pen-ruler" href="https://github.com/LogeshG5/silverbullet-drawio">
+    Embed and edit Draw.io diagrams in your space.
+  </Card>
+  <Card title="PlantUML" icon="sitemap" href="https://github.com/LogeshG5/silverbullet-plantuml">
+    Render PlantUML diagrams inside fenced code blocks.
+  </Card>
+</CardGroup>
+
+Browse the full list on the [SilverBullet community forum](https://community.silverbullet.md/c/plugs/14).
+
+## Plugs vs Space Lua
+
+| | Space Lua | Plugs |
+|---|---|---|
+| Language | Lua | TypeScript |
+| Build step | None | `npm run build` |
+| Distribution | Pages in your space | `.plug.js` file |
+| Editor integration | Deep (live preview, completions) | Via syscalls |
+| Best for | Commands, templates, widgets, automation | Low-level APIs, publishable extensions |
+
+<Tip>
+  If you can accomplish your goal with Space Lua, prefer it. Plugs are best when you need direct TypeScript access to the syscall API, want to publish a reusable plug for the community, or need to bundle static assets.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Developing plugs" icon="code" href="/plugs/development">
+    Build your first plug using the official template repository.
+  </Card>
+  <Card title="Space Lua overview" icon="scroll" href="/space-lua/overview">
+    Learn the easier scripting alternative built into SilverBullet.
+  </Card>
+</CardGroup>

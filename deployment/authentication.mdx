@@ -1,0 +1,110 @@
+---
+title: "Authentication"
+description: "Configure user authentication, session management, brute-force protection, and API token access for your SilverBullet deployment."
+---
+
+SilverBullet supports single-user authentication via an environment variable. You can also delegate authentication to an external proxy, use bearer tokens for API access, and optionally encrypt your local client data.
+
+## Single user authentication
+
+Set the `SB_USER` environment variable to a `username:password` combination to enable authentication:
+
+```bash
+docker run -e SB_USER=pete:mysecretpassword -p 3000:3000 -v ./space:/space ghcr.io/silverbulletmd/silverbullet
+```
+
+When `SB_USER` is set, SilverBullet shows a login page on first access. Without it, the server is open to anyone who can reach it.
+
+<Warning>
+  Use a strong, randomly generated password in production. Avoid simple passwords like `1234` — anyone who can reach your server URL can attempt to log in.
+</Warning>
+
+## Session persistence
+
+The login page includes a **Remember me** checkbox. When checked, the session survives browser restarts. The default duration is 7 days (168 hours).
+
+<ParamField path="SB_REMEMBER_ME_HOURS" type="number" default="168">
+  Session duration in hours when "Remember me" is checked. Set to a lower value if you are on a shared or untrusted device.
+</ParamField>
+
+## Lockout protection
+
+SilverBullet locks out clients after repeated failed login attempts to protect against brute-force attacks.
+
+<ParamField path="SB_LOCKOUT_LIMIT" type="number" default="10">
+  Number of failed login attempts before a client is temporarily locked out.
+</ParamField>
+
+<ParamField path="SB_LOCKOUT_TIME" type="number" default="60">
+  Duration of the lockout in seconds after the limit is reached.
+</ParamField>
+
+## API / bearer token authentication
+
+For programmatic access — scripts, automation, or integrations — you can authenticate with a bearer token instead of a username and password.
+
+<ParamField path="SB_AUTH_TOKEN" type="string">
+  A secret token accepted via `Authorization: Bearer <token>` HTTP headers. Set this to enable token-based authentication for the HTTP API.
+</ParamField>
+
+Example API request using a bearer token:
+
+```bash
+curl -H "Authorization: Bearer mysecrettoken" https://silverbullet.yourdomain.com/index.json
+```
+
+<Note>
+  `SB_AUTH_TOKEN` and `SB_USER` can be used together. The bearer token is independent of the session-based login.
+</Note>
+
+## Authentication proxy
+
+You can run SilverBullet behind an external authentication proxy such as [Authelia](https://www.authelia.com/), [Authentik](https://goauthentik.io/), [Cloudflare Zero Trust](https://www.cloudflare.com/products/zero-trust/), or [Pangolin](https://pangolin.dev/). This delegates login and MFA entirely to the proxy.
+
+### Required path exclusions
+
+You **must** allow unauthenticated access to the following paths, or PWA and offline features will break:
+
+- `/service_worker.js`
+- `/.client/*`
+
+This is safe — these paths only serve client-side code, not any of your space content.
+
+### Authelia configuration example
+
+```yaml
+access_control:
+  default_policy: deny
+
+  rules:
+    - domain: silverbullet.yourdomain.com
+      resources:
+        - '/\.client/manifest\.json$'
+        - '/\.client/[a-zA-Z0-9_-]+\.png$'
+        - '/service_worker\.js$'
+      policy: bypass
+    - domain: silverbullet.yourdomain.com
+      policy: two_factor
+```
+
+The `bypass` rules allow the web app manifest, app icons, and service worker to load without authentication. Adjust the domain and policies to match your setup.
+
+<Tip>
+  The same path exclusion principle applies to any proxy. For Cloudflare Zero Trust or Authentik, add equivalent bypass rules for `/.client/*` and `/service_worker.js`.
+</Tip>
+
+## Client encryption
+
+When you authenticate with SilverBullet's built-in `SB_USER` authentication, you can enable **client encryption** at login. When enabled:
+
+- All content stored in your browser (synced files and the index) is encrypted using a 256-bit key derived from your username and password via PBKDF2.
+- Closing all SilverBullet browser tabs flushes the key from memory, rendering the locally cached data unreadable without logging in again.
+- Data in transit is always encrypted via TLS regardless of this setting.
+
+<Warning>
+  Client encryption has trade-offs. It is slower due to constant AES encryption/decryption, and you will need to log in again whenever all browser tabs are closed. It is most useful when accessing SilverBullet from a shared or public computer.
+</Warning>
+
+<Note>
+  Client encryption is only available when using SilverBullet's native `SB_USER` authentication. It does not work with authentication proxies.
+</Note>

@@ -1,0 +1,199 @@
+---
+title: "Task management"
+description: "Track tasks across your entire SilverBullet space using checkbox syntax, inline attributes, linked tasks, and live queries — no dedicated task app required."
+---
+
+SilverBullet's task model is simple: tasks are checkboxes you write in Markdown, and they're automatically indexed across your whole space. You can scatter tasks naturally across project pages, meeting notes, and journal entries, then aggregate them into a dashboard using queries. Tasks that link to a project page appear automatically on that page — you don't copy or move them.
+
+<Steps>
+  <Step title="Create a project page">
+    Make a page called "Website Redesign" (or whatever your project is named). Add YAML frontmatter to give it queryable structure:
+
+    ```yaml
+    ---
+    tags: project
+    status: active
+    priority: high
+    ---
+    ```
+
+    Below the frontmatter, write a brief description of the project and its goals. This page will become the hub for all work related to this project.
+  </Step>
+
+  <Step title="Add tasks to the project page">
+    Type `/task` to insert a task via slash command, or write the checkbox syntax directly. Add a few tasks below the project description:
+
+    ```markdown
+    * [ ] Write the project proposal
+    * [ ] Create wireframes
+    * [ ] Set up staging environment
+    ```
+
+    Click a checkbox to mark it done. All tasks are automatically indexed and queryable — no setup required.
+
+    <Info>
+      Tasks support custom states beyond `[ ]` (not done) and `[x]` (done). For example: `[IN PROGRESS]`, `[NOT STARTED]`, `[WAITING]`. States cannot contain `:` to avoid ambiguity with attribute syntax.
+    </Info>
+  </Step>
+
+  <Step title="Annotate tasks with attributes">
+    Add metadata to individual tasks using inline attribute syntax (`[key: value]`):
+
+    ```markdown
+    * [ ] Write the proposal [deadline: "2026-03-15"] [priority: high]
+    * [ ] Review design mockups [assignee: Alice]
+    * [ ] Get client approval #waiting
+    ```
+
+    Attributes and hashtags on a task both become queryable fields. The task tagged `#waiting` is indexed under both the `task` tag and the `waiting` tag, so you can query either.
+
+    <Tip>
+      Use attributes for structured data you'll query on (deadline, priority, assignee) and hashtags for lightweight categorical labels you'll filter by.
+    </Tip>
+  </Step>
+
+  <Step title="Write tasks naturally across pages">
+    Tasks don't all need to live on the project page. They come up in meetings, during reviews, and while reading. Create a meeting notes page like `Meeting Notes/2026-03-04` and write tasks there that link back to the project:
+
+    ```markdown
+    * [ ] Send updated mockups to client [[Website Redesign]]
+    * [ ] Schedule review meeting [[Website Redesign]]
+    * [ ] Update the timeline [[Website Redesign]]
+    ```
+
+    The `[[Website Redesign]]` link in each task connects it to the project page. You're not copying tasks — you're writing them where they naturally belong and referencing the project they're part of.
+  </Step>
+
+  <Step title="Use Linked Tasks to see everything in one place">
+    Navigate to your "Website Redesign" page. At the top, the **Linked Tasks** widget automatically shows all incomplete tasks from _other pages_ that link to this page — including the tasks you just wrote in meeting notes.
+
+    You can check off a linked task from the project page or from the original meeting notes page. The state change propagates — checking a task done in either place marks it done everywhere.
+
+    No copying, moving, or manual aggregation needed.
+  </Step>
+
+  <Step title="Build a dashboard with live queries">
+    Create a "Dashboard" page (or add sections to your home page) that pulls task data from across your entire space using Space Lua queries.
+
+    Show all active projects:
+
+    ```lua
+    ## Active projects
+    ${query[[from p = tags.project where p.status == "active"]]}
+    ```
+
+    Show the ten most recently modified open tasks:
+
+    ```lua
+    ## Open tasks
+    ${template.each(query[[
+      from t = tags.task
+      where not t.done
+      order by t.lastModified desc
+      limit 10
+    ]], templates.taskItem)}
+    ```
+
+    Show tasks with deadlines, sorted soonest-first:
+
+    ```lua
+    ## Due soon
+    ${template.each(query[[
+      from t = tags.task
+      where not t.done and t.deadline
+      order by t.deadline
+      limit 5
+    ]], templates.taskItem)}
+    ```
+
+    Each section updates live as you add, complete, or modify tasks anywhere in your space.
+  </Step>
+</Steps>
+
+## Filtering tasks by tag, page, or attribute
+
+The query language supports any combination of filters. Some common patterns:
+
+**All open tasks tagged `#waiting`:**
+```lua
+${template.each(query[[
+  from t = tags.waiting
+  where t.tag == "task" and not t.done
+  order by t.lastModified desc
+]], templates.taskItem)}
+```
+
+**All tasks assigned to Alice:**
+```lua
+${template.each(query[[
+  from t = tags.task
+  where not t.done and t.assignee == "Alice"
+  order by t.deadline
+]], templates.taskItem)}
+```
+
+**All open tasks on a specific project's pages:**
+```lua
+${template.each(query[[
+  from t = tags.task
+  where not t.done and t.page:match("^Meeting Notes/")
+  order by t.page
+]], templates.taskItem)}
+```
+
+**Show all tasks from across the space, grouped by page:**
+```lua
+${template.each(query[[
+  from t = tags.task
+  where not t.done
+  order by t.page
+]], templates.taskItem)}
+```
+
+## Using a project page template
+
+If you create project pages frequently, a [page template](/customization/templates) saves time. Create a page called `Library/Page Templates/Project` tagged `meta/template/page`:
+
+```markdown
+---
+command: "New Project"
+tags: meta/template/page
+confirmName: true
+frontmatter: |
+  tags: project
+  status: active
+  priority: medium
+---
+## Goal
+
+|^|
+
+## Tasks
+
+* [ ] 
+
+## Notes
+```
+
+Running **New Project** from the Command Palette creates a new page with the project frontmatter and sections already in place.
+
+<Note>
+  The `frontmatter` key in a page template's own frontmatter specifies the frontmatter that gets written into the new page. The template's own frontmatter (with `command`, `tags: meta/template/page`, etc.) is not copied to the new page.
+</Note>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Daily journaling" icon="calendar" href="/guides/journaling">
+    Capture tasks in journal entries and link them back to projects.
+  </Card>
+  <Card title="Knowledge base" icon="book-open" href="/guides/knowledge-base">
+    Use the same query patterns to index any type of content.
+  </Card>
+  <Card title="People notes" icon="user" href="/guides/people-notes">
+    Track tasks that reference specific people.
+  </Card>
+  <Card title="Templates" icon="layout-template" href="/customization/templates">
+    Create page and slash templates to speed up your workflow.
+  </Card>
+</CardGroup>

@@ -1,0 +1,297 @@
+---
+title: "Template API"
+description: "Create and render templates for dynamic content, slash commands, and page generation in SilverBullet."
+---
+
+The `template` object is a global available in all Space Lua scripts. It provides functions for creating template functions and rendering them over collections of data. Templates use `${expr}` interpolation syntax and integrate with the [Index API](/api/index) for data-driven content generation.
+
+---
+
+## Creating templates
+
+### template.new(templateString, stripIndent)
+
+Returns a template function from a Lua string. The template string uses `${expr}` placeholders where `expr` is any valid Lua expression with access to the fields of the data object being rendered.
+
+By convention, multi-line template strings are enclosed in `[==[` and `]==]` to avoid conflicts with nested quotes.
+
+<ParamField path="templateString" type="string" required>
+  Template string with `${expr}` placeholders. Any field of the data table passed at render time is accessible by name.
+</ParamField>
+
+<ParamField path="stripIndent" type="boolean" default="true">
+  When `true` (the default), leading indentation is stripped from the beginning of the template string. Set to `false` to preserve indentation exactly.
+</ParamField>
+
+```lua
+-- Define a template function
+local greet = template.new[==[Hello, ${name}! You have ${count} tasks.]==]
+
+-- Render it with a data table
+local output = greet({ name = "Alice", count = 5 })
+print(output)  -- Hello, Alice! You have 5 tasks.
+```
+
+Templates are reusable functions. Define them once and call them multiple times:
+
+```lua
+local pageLink = template.new[==[* [[${name}]]]==]
+
+local pages = query[[from index.tag "page" limit 5]]
+for p in each(pages) do
+  print(pageLink(p))
+end
+```
+
+---
+
+## Rendering over collections
+
+### template.each(collection, templateFn)
+
+Iterates over a collection and renders a template function for each item. Returns a single string with all rendered items concatenated.
+
+<ParamField path="collection" type="table[]" required>
+  Array of objects to render. Typically the result of a `query[[...]]` expression.
+</ParamField>
+
+<ParamField path="templateFn" type="function" required>
+  Template function to call for each item. Usually created with `template.new()` or one of the pre-built templates.
+</ParamField>
+
+```lua
+-- Render a bullet list of all project pages
+${template.each(
+  query[[from p = index.tag "project" order by p.name]],
+  template.new[==[* [[${name}]] — ${status}]==]
+)}
+```
+
+```lua
+-- Use a pre-built template
+${template.each(
+  query[[from index.tag "task" where not _.done]],
+  templates.taskItem
+)}
+```
+
+---
+
+## Pre-built templates
+
+SilverBullet ships a `templates` table (note the plural) with ready-made template functions for common output formats.
+
+### templates.pageItem
+
+Renders a page as a bullet list item with a wiki link.
+
+**Output:** `* [[page name]]`
+
+```lua
+${template.each(
+  query[[from index.tag "page" limit 10]],
+  templates.pageItem
+)}
+```
+
+---
+
+### templates.fullPageItem
+
+Renders a page as a bullet list item using the full path as the link label.
+
+**Output:** `* [[full/path/to/page|full/path/to/page]]`
+
+```lua
+${template.each(
+  query[[from index.tag "page" where _.name:find("^Projects/")]],
+  templates.fullPageItem
+)}
+```
+
+---
+
+### templates.taskItem
+
+Renders a task with a toggle checkbox showing its done state.
+
+**Output:** `* [x] task text` or `* [ ] task text`
+
+```lua
+${template.each(
+  query[[from t = index.tag "task" where not t.done order by t.page]],
+  templates.taskItem
+)}
+```
+
+---
+
+### templates.itemItem
+
+Renders a list item with a link to its source page.
+
+**Output:** `* item text ([source page])`
+
+```lua
+${template.each(
+  query[[from index.tag "item" where _.page == "My Notes"]],
+  templates.itemItem
+)}
+```
+
+---
+
+### templates.paragraphItem
+
+Renders a paragraph with a link to its source page.
+
+**Output:** `* paragraph text ([source page])`
+
+```lua
+${template.each(
+  query[[from index.tag "paragraph" limit 5]],
+  templates.paragraphItem
+)}
+```
+
+---
+
+### templates.tagItem
+
+Renders a tag as a linked hashtag.
+
+**Output:** `* #tagname`
+
+```lua
+${template.each(
+  query[[from index.tag "tag" order by _.name]],
+  templates.tagItem
+)}
+```
+
+---
+
+## Page templates
+
+Page templates are pages in your space tagged with `#meta/template/page`. When a new page is created, SilverBullet offers matching templates to pre-populate the content.
+
+To create a page template:
+
+<Steps>
+  <Step title="Create the template page">
+    Create a new page in your space, for example `templates/Project`.
+  </Step>
+  <Step title="Tag it as a page template">
+    Add `#meta/template/page` to the page, along with an optional `displayName` in frontmatter:
+
+    ```markdown
+    ---
+    tags: meta/template/page
+    displayName: New Project
+    ---
+
+    # ${name}
+
+    **Status:** active
+    **Created:** ${os.date("%Y-%m-%d")}
+
+    ## Goals
+
+    ## Tasks
+    ```
+  </Step>
+  <Step title="Use the template">
+    Create a new page using the Page Picker. SilverBullet will prompt you to choose a template if any page templates exist.
+  </Step>
+</Steps>
+
+The `${name}` placeholder in a page template is replaced with the new page's name at creation time.
+
+---
+
+## Slash templates
+
+Slash templates are pages tagged with `#meta/template/slash`. They appear in the slash command menu (triggered by typing `/`) and insert their content at the cursor position.
+
+To create a slash template:
+
+<Steps>
+  <Step title="Create the template page">
+    Create a page such as `templates/meeting-notes`.
+  </Step>
+  <Step title="Tag it as a slash template">
+    Add `#meta/template/slash` and a `slashCommand` name in frontmatter:
+
+    ```markdown
+    ---
+    tags: meta/template/slash
+    slashCommand: meeting
+    ---
+
+    ## Meeting — ${os.date("%Y-%m-%d")}
+
+    **Attendees:**
+
+    **Agenda:**
+
+    **Notes:**
+
+    **Action items:**
+    - [ ] 
+    ```
+  </Step>
+  <Step title="Trigger it">
+    In any page, type `/meeting` and press Enter. SilverBullet inserts the rendered template content at the cursor.
+  </Step>
+</Steps>
+
+<Tip>
+  Slash templates support the same `${expr}` interpolation as regular templates. Expressions are evaluated at insertion time, so `${os.date("%Y-%m-%d")}` inserts today's date.
+</Tip>
+
+---
+
+## Practical examples
+
+### Generating a weekly summary
+
+```lua
+-- Render all tasks created this week
+${template.each(
+  query[[
+    from t = index.tag "task"
+    where t.done
+    order by t.page
+  ]],
+  template.new[==[
+    * [x] ${name} (${page})
+  ]==]
+)}
+```
+
+### Building an index page
+
+```lua
+-- All project pages sorted by priority
+${template.each(
+  query[[
+    from p = index.tag "project"
+    where p.status == "active"
+    order by p.priority desc
+  ]],
+  template.new[==[
+    * [[${name}]] — **${status}** (priority: ${priority or "none"})
+  ]==]
+)}
+```
+
+### Inline template with conditional output
+
+```lua
+${template.each(
+  query[[from index.tag "task" where not _.done]],
+  template.new[==[
+    * [ ] ${name}${due and " (due: " .. due .. ")" or ""}
+  ]==]
+)}
+```

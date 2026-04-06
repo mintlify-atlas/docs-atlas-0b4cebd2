@@ -1,0 +1,106 @@
+---
+title: "JavaScript Interop"
+description: "Access browser APIs, import JavaScript modules, and bridge between Lua and JavaScript from Space Lua scripts."
+---
+
+Space Lua runs in the browser and has direct access to JavaScript through the `js` module. This lets you use native browser APIs and import external libraries from CDNs.
+
+<Warning>
+  JavaScript interop gives you significant power. Use it carefully — poorly written scripts can affect editor performance or cause unexpected behavior.
+</Warning>
+
+## Accessing browser APIs
+
+Use `js.window` to access the browser's `window` object:
+
+```lua
+-- Get the current URL
+local url = js.window.location.href
+
+-- Set a timer
+js.window.setTimeout(function()
+  editor.flashNotification("Timer fired!")
+end, 3000)
+
+-- Copy text to clipboard
+js.window.navigator.clipboard.writeText("Hello from Lua!")
+```
+
+## Importing JavaScript modules
+
+Use `js.import` to load ES modules from URLs. The most common source is [esm.sh](https://esm.sh):
+
+```lua
+-- Import lodash
+local lodash = js.import("https://esm.sh/lodash@4.17.21")
+local chunks = lodash.chunk({1, 2, 3, 4, 5, 6}, 2)
+js.log("Chunks:", chunks)  -- [[1,2],[3,4],[5,6]]
+```
+
+## Converting between Lua and JavaScript values
+
+Space Lua automatically converts between Lua tables and JavaScript objects/arrays in most cases. For fine-grained control:
+
+| Function | Description |
+|---|---|
+| `js.tojs(luaValue)` | Converts a Lua value to its JavaScript equivalent |
+| `js.tolua(jsValue)` | Converts a JavaScript value to its Lua equivalent |
+| `js.stringify(value)` | JSON-serializes a JavaScript value to a string |
+
+## Creating JavaScript objects
+
+Use `js.new` to instantiate JavaScript classes:
+
+```lua
+local map = js.new(js.window.Map)
+-- or with constructor arguments:
+local obj = js.new(SomeConstructor, arg1, arg2)
+```
+
+## Async transparency
+
+Space Lua handles JavaScript Promises transparently — when a JavaScript function returns a Promise, Space Lua automatically awaits it. No special async/await syntax needed:
+
+```lua
+-- fetch() returns a Promise, but this just works
+local response = js.window.fetch("https://api.example.com/data")
+local text = response.text()
+print(text)
+```
+
+## Iterating async iterables
+
+Use `js.eachIterable` for JavaScript async iterables:
+
+```lua
+for value in js.eachIterable(someAsyncIterable) do
+  print(value)
+end
+```
+
+## Logging
+
+Use `js.log` to write to the browser's developer console (useful for debugging):
+
+```lua
+js.log("Debug info:", {name = "test", count = 42})
+```
+
+## Practical example
+
+Fetch external data and display it as a widget:
+
+```lua
+-- space-lua
+function fetchQuote()
+  local response = js.window.fetch("https://api.quotable.io/random")
+  local data = js.tolua(response.json())
+  return widget.markdownBlock("> " .. data.content .. "\n>\n> — " .. data.author)
+end
+```
+
+Use in a page: `${fetchQuote()}`
+
+<Note>
+  `js.import` loads modules from external URLs at runtime. For production use, pin a specific version (e.g., `lodash@4.17.21`) to avoid breaking changes.
+</Note>

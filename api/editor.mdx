@@ -1,0 +1,830 @@
+---
+title: "Editor API"
+description: "Interact with the SilverBullet editor — cursor position, text manipulation, navigation, notifications, and UI dialogs."
+---
+
+The `editor` object is a global available in all Space Lua scripts running in the browser client. It provides functions for reading and modifying editor state, navigating between pages, showing notifications, and interacting with the UI.
+
+<Warning>
+  Editor API calls are only available in the browser client. They do not work in server-side or headless contexts unless you use the [Runtime API](/api/http#runtime-api), which runs a full SilverBullet client internally.
+</Warning>
+
+---
+
+## Current page
+
+### editor.getCurrentPage()
+
+Returns the name of the page currently open in the editor.
+
+```lua
+local page = editor.getCurrentPage()
+print("You are on: " .. page)
+```
+
+<ResponseField name="return" type="string">
+  Current page name, relative to the space root and without the `.md` extension.
+</ResponseField>
+
+---
+
+### editor.getCurrentPageMeta()
+
+Returns the metadata of the page currently open in the editor.
+
+```lua
+local meta = editor.getCurrentPageMeta()
+print(meta.lastModified)
+```
+
+<ResponseField name="return" type="table">
+  Page metadata object (same structure as `space.getPageMeta()`), or `nil` if no page is open.
+</ResponseField>
+
+---
+
+### editor.getCurrentPath()
+
+Returns the full path of the page or document currently open in the editor, including the file extension.
+
+```lua
+local path = editor.getCurrentPath()
+print(path)  -- e.g. "Projects/Q1.md"
+```
+
+<ResponseField name="return" type="string">
+  Full path with extension.
+</ResponseField>
+
+---
+
+### editor.getCurrentEditor()
+
+Returns the name of the currently active editor type.
+
+```lua
+local editorName = editor.getCurrentEditor()
+print(editorName)
+```
+
+<ResponseField name="return" type="string">
+  Name of the active editor (e.g., `"markdown"`, `"image"`, `"pdf"`).
+</ResponseField>
+
+---
+
+## Reading editor content
+
+### editor.getText()
+
+Returns the full text of the currently open page.
+
+```lua
+local text = editor.getText()
+print("Document length: " .. #text)
+```
+
+<ResponseField name="return" type="string">
+  Full text content of the current page.
+</ResponseField>
+
+---
+
+### editor.getCurrentLine()
+
+Returns the range and text of the line at the current cursor position.
+
+```lua
+local line = editor.getCurrentLine()
+print("from " .. line.from .. " to " .. line.to)
+print("text: " .. line.text)
+```
+
+<ResponseField name="return" type="table">
+  <Expandable title="fields">
+    <ResponseField name="from" type="number">
+      Character offset of the start of the line.
+    </ResponseField>
+    <ResponseField name="to" type="number">
+      Character offset of the end of the line.
+    </ResponseField>
+    <ResponseField name="text" type="string">
+      Text of the line without the cursor marker.
+    </ResponseField>
+    <ResponseField name="textWithCursor" type="string">
+      Text of the line with a `|` marker at the cursor position.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Modifying editor content
+
+### editor.setText(text, isolateHistory)
+
+Replaces the full content of the current page. Uses a minimal diff to preserve the cursor location as much as possible.
+
+<ParamField path="text" type="string" required>
+  New content to set as the page text.
+</ParamField>
+
+<ParamField path="isolateHistory" type="boolean" default="false">
+  When `true`, the change is recorded as an isolated history entry and cannot be undone with subsequent changes in a single undo step.
+</ParamField>
+
+```lua
+local text = editor.getText()
+editor.setText(text:upper(), false)  -- convert all text to uppercase
+```
+
+---
+
+### editor.insertAtCursor(text)
+
+Inserts text at the current cursor position.
+
+<ParamField path="text" type="string" required>
+  Text to insert at the cursor.
+</ParamField>
+
+```lua
+editor.insertAtCursor("## New Section\n\n")
+```
+
+---
+
+### editor.insertAtPos(text, pos)
+
+Inserts text at the specified character offset.
+
+<ParamField path="text" type="string" required>
+  Text to insert.
+</ParamField>
+
+<ParamField path="pos" type="number" required>
+  Character offset at which to insert the text. `0` is the beginning of the document.
+</ParamField>
+
+```lua
+editor.insertAtPos("<!-- header -->\n", 0)  -- insert at the very beginning
+```
+
+---
+
+### editor.replaceRange(from, to, text)
+
+Replaces the text between two character offsets with new text.
+
+<ParamField path="from" type="number" required>
+  Start character offset of the range to replace.
+</ParamField>
+
+<ParamField path="to" type="number" required>
+  End character offset (exclusive) of the range to replace.
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Replacement text.
+</ParamField>
+
+```lua
+editor.replaceRange(0, 5, "Hello")
+```
+
+---
+
+## Cursor and selection
+
+### editor.getCursor()
+
+Returns the current cursor position as a character offset from the start of the document.
+
+```lua
+local pos = editor.getCursor()
+print("Cursor at position: " .. pos)
+```
+
+<ResponseField name="return" type="number">
+  Character offset of the cursor.
+</ResponseField>
+
+---
+
+### editor.moveCursor(pos, center)
+
+Moves the cursor to the specified character offset.
+
+<ParamField path="pos" type="number" required>
+  Target character offset.
+</ParamField>
+
+<ParamField path="center" type="boolean" default="false">
+  When `true`, scrolls the editor so the cursor is centered vertically.
+</ParamField>
+
+```lua
+editor.moveCursor(0, true)  -- jump to the beginning and center
+```
+
+---
+
+### editor.moveCursorToLine(line, column, center)
+
+Moves the cursor to a specific line and column number.
+
+<ParamField path="line" type="number" required>
+  Line number, 1-indexed.
+</ParamField>
+
+<ParamField path="column" type="number" default="1">
+  Column number, 1-indexed.
+</ParamField>
+
+<ParamField path="center" type="boolean" default="false">
+  When `true`, centers the cursor vertically after moving.
+</ParamField>
+
+```lua
+editor.moveCursorToLine(10, 1, true)  -- jump to line 10, column 1
+```
+
+---
+
+### editor.getSelection()
+
+Returns the current selection range and the selected text.
+
+```lua
+local sel = editor.getSelection()
+print("from " .. sel.from .. " to " .. sel.to)
+print("selected text: " .. sel.text)
+```
+
+<ResponseField name="return" type="table">
+  <Expandable title="fields">
+    <ResponseField name="from" type="number">
+      Start character offset of the selection.
+    </ResponseField>
+    <ResponseField name="to" type="number">
+      End character offset of the selection.
+    </ResponseField>
+    <ResponseField name="text" type="string">
+      The selected text. Empty string when there is no selection.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### editor.setSelection(from, to)
+
+Sets the selection to the given character range.
+
+<ParamField path="from" type="number" required>
+  Start character offset of the selection.
+</ParamField>
+
+<ParamField path="to" type="number" required>
+  End character offset of the selection.
+</ParamField>
+
+```lua
+editor.setSelection(0, 10)  -- select the first 10 characters
+```
+
+---
+
+## Navigation
+
+### editor.navigate(ref, replaceState, newWindow)
+
+Navigates to a page or position reference.
+
+<ParamField path="ref" type="string" required>
+  Reference to navigate to. Accepts a page name, a header ref (`page#Header`), or a position ref (`page@42`).
+</ParamField>
+
+<ParamField path="replaceState" type="boolean" default="false">
+  When `true`, replaces the current browser history entry instead of pushing a new one.
+</ParamField>
+
+<ParamField path="newWindow" type="boolean" default="false">
+  When `true`, opens the reference in a new browser window.
+</ParamField>
+
+```lua
+editor.navigate("CHANGELOG")           -- navigate to a page
+editor.navigate("CHANGELOG#v2.0")      -- navigate to a section
+editor.navigate("CHANGELOG@123")       -- navigate to a character position
+editor.navigate("Notes", false, true)  -- open in new window
+```
+
+---
+
+### editor.openUrl(url, existingWindow)
+
+Opens the specified URL in the browser.
+
+<ParamField path="url" type="string" required>
+  URL to open.
+</ParamField>
+
+<ParamField path="existingWindow" type="boolean" default="false">
+  When `true`, attempts to reuse an existing window rather than opening a new tab.
+</ParamField>
+
+```lua
+editor.openUrl("https://silverbullet.md")
+```
+
+---
+
+### editor.goHistory(delta)
+
+Moves through the browser navigation history.
+
+<ParamField path="delta" type="number" required>
+  Number of steps to move. Use `-1` to go back, `1` to go forward.
+</ParamField>
+
+```lua
+editor.goHistory(-1)  -- go back
+editor.goHistory(1)   -- go forward
+```
+
+---
+
+## Notifications and dialogs
+
+### editor.flashNotification(message, type, options)
+
+Shows a temporary notification in the top-right corner of the editor.
+
+<ParamField path="message" type="string" required>
+  Message to display.
+</ParamField>
+
+<ParamField path="type" type="string" default="info">
+  Notification type: `"info"`, `"error"`, or `"warning"`.
+</ParamField>
+
+<ParamField path="options" type="table">
+  Optional table with additional settings:
+  - `timeout` — dismiss timeout in milliseconds. Use `0` for a persistent notification. Defaults to 4000ms for `info`, 5000ms for `warning`, and 8000ms for `error`.
+  - `actions` — list of action buttons, each a table with `name` (button label) and `run` (function to call on click).
+</ParamField>
+
+```lua
+-- Simple notification
+editor.flashNotification("Page saved!", "info")
+
+-- Persistent notification with an action button
+editor.flashNotification("Update available", "warning", {
+  timeout = 0,
+  actions = {
+    {
+      name = "Reload",
+      run = function()
+        editor.reloadUI()
+      end
+    }
+  }
+})
+```
+
+---
+
+### editor.prompt(message, defaultValue)
+
+Shows a text input prompt dialog and returns the entered value.
+
+<ParamField path="message" type="string" required>
+  Prompt message displayed above the input field.
+</ParamField>
+
+<ParamField path="defaultValue" type="string" default="">
+  Pre-filled default value for the input field.
+</ParamField>
+
+```lua
+local name = editor.prompt("Enter your name:", "Anonymous")
+if name then
+  editor.insertAtCursor("Hello, " .. name .. "!")
+end
+```
+
+<ResponseField name="return" type="string | nil">
+  The entered string, or `nil` if the user cancelled.
+</ResponseField>
+
+---
+
+### editor.confirm(message)
+
+Shows a confirmation dialog with OK and Cancel buttons.
+
+<ParamField path="message" type="string" required>
+  Confirmation message to display.
+</ParamField>
+
+```lua
+if editor.confirm("Delete this page?") then
+  space.deletePage(editor.getCurrentPage())
+end
+```
+
+<ResponseField name="return" type="boolean">
+  `true` if the user clicked OK, `false` if they cancelled.
+</ResponseField>
+
+---
+
+### editor.alert(message)
+
+Shows an alert dialog with an OK button.
+
+<ParamField path="message" type="string" required>
+  Message to display in the alert.
+</ParamField>
+
+```lua
+editor.alert("Operation completed successfully.")
+```
+
+---
+
+### editor.filterBox(label, options, helpText, placeHolder)
+
+Shows a searchable filter box UI, similar to the page navigator and command palette.
+
+<ParamField path="label" type="string" required>
+  Label displayed to the left of the input box.
+</ParamField>
+
+<ParamField path="options" type="table[]" required>
+  Array of option tables. Each option must have a `name` field, and may optionally have a `description` field for additional context.
+</ParamField>
+
+<ParamField path="helpText" type="string" default="">
+  Help text displayed below the input box.
+</ParamField>
+
+<ParamField path="placeHolder" type="string" default="">
+  Placeholder text for the input box.
+</ParamField>
+
+```lua
+local result = editor.filterBox("Select template:", {
+  { name = "Daily Journal", description = "Creates today's journal entry" },
+  { name = "Meeting Notes", description = "Blank meeting notes template" },
+  { name = "Project Plan",  description = "Project planning template" }
+})
+if result then
+  print("You selected: " .. result.name)
+end
+```
+
+<ResponseField name="return" type="table | nil">
+  The selected option table, or `nil` if the user dismissed the dialog.
+</ResponseField>
+
+---
+
+## Panels
+
+### editor.showPanel(id, mode, html, script)
+
+Shows a panel in the editor at the specified location.
+
+<ParamField path="id" type="string" required>
+  Panel location: `"lhs"` (left-hand side), `"rhs"` (right-hand side), `"bhs"` (bottom), or `"modal"`.
+</ParamField>
+
+<ParamField path="mode" type="number" required>
+  Panel size mode. `1` is the standard size.
+</ParamField>
+
+<ParamField path="html" type="string" required>
+  HTML content to render inside the panel.
+</ParamField>
+
+<ParamField path="script" type="string" default="">
+  JavaScript to execute inside the panel's context.
+</ParamField>
+
+```lua
+editor.showPanel("rhs", 1, "<h1>My Panel</h1><p>Panel content goes here.</p>")
+```
+
+---
+
+### editor.hidePanel(id)
+
+Hides a panel.
+
+<ParamField path="id" type="string" required>
+  Panel location: `"lhs"`, `"rhs"`, `"bhs"`, or `"modal"`.
+</ParamField>
+
+```lua
+editor.hidePanel("rhs")
+```
+
+---
+
+## Page and UI controls
+
+### editor.save()
+
+Forces an immediate save of the current page.
+
+```lua
+editor.save()
+```
+
+---
+
+### editor.reloadPage()
+
+Force-reloads the current page from storage.
+
+```lua
+editor.reloadPage()
+```
+
+---
+
+### editor.reloadUI()
+
+Force-reloads the entire browser UI.
+
+```lua
+editor.reloadUI()
+```
+
+---
+
+### editor.reloadConfigAndCommands()
+
+Reloads the Space Lua configuration and all registered commands, including on the server.
+
+```lua
+editor.reloadConfigAndCommands()
+```
+
+---
+
+### editor.openPageNavigator(mode)
+
+Opens the page navigator.
+
+<ParamField path="mode" type="string" default="page">
+  Navigator mode: `"page"`, `"meta"`, `"document"`, or `"all"`.
+</ParamField>
+
+```lua
+editor.openPageNavigator("page")
+```
+
+---
+
+### editor.openCommandPalette()
+
+Opens the command palette.
+
+```lua
+editor.openCommandPalette()
+```
+
+---
+
+### editor.invokeCommand(name, args)
+
+Invokes a registered client command by name.
+
+<ParamField path="name" type="string" required>
+  Name of the command to invoke (as shown in the command palette).
+</ParamField>
+
+<ParamField path="args" type="string[]">
+  Optional array of string arguments to pass to the command.
+</ParamField>
+
+```lua
+editor.invokeCommand("Stats: Show")
+```
+
+---
+
+## Clipboard and files
+
+### editor.copyToClipboard(data)
+
+Copies text to the clipboard.
+
+<ParamField path="data" type="string" required>
+  Text to copy.
+</ParamField>
+
+<Note>
+  Copying to the clipboard requires HTTPS. This function will silently fail on plain HTTP connections.
+</Note>
+
+```lua
+editor.copyToClipboard("Copied from SilverBullet!")
+```
+
+---
+
+### editor.downloadFile(filename, dataUrl)
+
+Triggers a browser download with the given filename.
+
+<ParamField path="filename" type="string" required>
+  File name to use for the download.
+</ParamField>
+
+<ParamField path="dataUrl" type="string" required>
+  Data URL string (e.g., `"data:text/plain;base64,SGVsbG8="`) to use as the file content.
+</ParamField>
+
+```lua
+editor.downloadFile("export.txt", "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==")
+```
+
+---
+
+### editor.uploadFile(accept, capture)
+
+Opens the browser's native file upload dialog and returns the selected file.
+
+<ParamField path="accept" type="string">
+  File types to accept, as a MIME type or extension string (e.g., `".txt"`, `"image/*"`).
+</ParamField>
+
+<ParamField path="capture" type="string">
+  Capture mode for mobile devices (e.g., `"camera"`).
+</ParamField>
+
+```lua
+local file = editor.uploadFile(".txt", nil)
+if file then
+  print("Uploaded: " .. file.name)
+end
+```
+
+<ResponseField name="return" type="table">
+  Object with `name`, `content`, and `contentType` fields.
+</ResponseField>
+
+---
+
+## UI options
+
+### editor.getUiOption(key)
+
+Gets the current value of a UI option.
+
+<ParamField path="key" type="string" required>
+  UI option key (e.g., `"theme"`, `"vimMode"`).
+</ParamField>
+
+```lua
+local theme = editor.getUiOption("theme")
+print("Current theme: " .. tostring(theme))
+```
+
+---
+
+### editor.setUiOption(key, value)
+
+Sets a UI option to the specified value.
+
+<ParamField path="key" type="string" required>
+  UI option key.
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  New value for the option.
+</ParamField>
+
+```lua
+editor.setUiOption("theme", "dark")
+```
+
+---
+
+## Editing utilities
+
+### editor.undo()
+
+Undoes the last change in the editor.
+
+```lua
+editor.undo()
+```
+
+---
+
+### editor.redo()
+
+Redoes the last undone change.
+
+```lua
+editor.redo()
+```
+
+---
+
+### editor.toggleFold()
+
+Toggles folding at the current cursor position.
+
+```lua
+editor.toggleFold()
+```
+
+---
+
+### editor.foldAll()
+
+Folds all foldable regions in the document.
+
+```lua
+editor.foldAll()
+```
+
+---
+
+### editor.unfoldAll()
+
+Unfolds all folded regions in the document.
+
+```lua
+editor.unfoldAll()
+```
+
+---
+
+### editor.deleteLine()
+
+Deletes the current line.
+
+```lua
+editor.deleteLine()
+```
+
+---
+
+### editor.toggleComment()
+
+Comments or uncomments the current line.
+
+```lua
+editor.toggleComment()
+```
+
+---
+
+### editor.moveLineUp()
+
+Moves the current line up by one position.
+
+```lua
+editor.moveLineUp()
+```
+
+---
+
+### editor.moveLineDown()
+
+Moves the current line down by one position.
+
+```lua
+editor.moveLineDown()
+```
+
+---
+
+### editor.openSearchPanel()
+
+Opens the editor's native search panel.
+
+```lua
+editor.openSearchPanel()
+```
+
+---
+
+### editor.vimEx(exCommand)
+
+Executes a Vim ex command. Only meaningful when Vim mode is enabled.
+
+<ParamField path="exCommand" type="string" required>
+  Vim ex command string to execute (e.g., `":w"`, `":%d"`).
+</ParamField>
+
+```lua
+editor.vimEx(":w")
+```

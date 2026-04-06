@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "SilverBullet",
+  "projectType": "saas",
+  "projectName": "SilverBullet",
+  "projectDescription": "A self-hosted, browser-based personal knowledge management platform built on Markdown and powered by Lua scripting.",
   "theme": "almond",
-  "colors": {
-    "primary": "#427393",
-    "light": "#a2bcc7"
-  },
-  "favicon": "https://media.brand.dev/ab984c1b-9669-421d-a59c-07f65119acd4.png",
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/silverbulletmd/silverbullet"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/silverbulletmd/silverbullet"
-    }
-  },
+  "primaryColor": "#427393",
+  "lightColor": "#a2bcc7",
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -64,7 +52,6 @@
               "deployment/authentication",
               "deployment/tls",
               "deployment/configuration",
-              "deployment/cli",
               "deployment/troubleshooting"
             ]
           }
@@ -104,5 +91,34 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Markdown-based note-taking with live preview",
+    "Space Lua scripting for dynamic content generation",
+    "Lua Integrated Query (LIQ) for querying page objects and metadata",
+    "Bi-directional wiki-style links between pages",
+    "Object indexing: pages, tasks, tags, and custom attributes are queryable",
+    "Progressive Web App (PWA) with offline support and local-first sync",
+    "Templates and slash commands for reusable content",
+    "Library manager for installing community extensions",
+    "Plugs (TypeScript-based) extension system with sandboxed web workers",
+    "Self-hosted with single binary or Docker deployment",
+    "Task management with cross-page task aggregation",
+    "Full-text search across your entire space"
+  ],
+  "publicApiSurface": [
+    "query[[from tags.<tag> where ... order by ... limit ...]]",
+    "template.new[==[...]==]",
+    "template.each(collection, templateFn)",
+    "index.tag(name)",
+    "space.* (readPage, writePage, listPages, deletePage)",
+    "editor.* (getCurrentPage, insertAtCursor, flashNotification)",
+    "GET /.fs/* — file system read/list",
+    "PUT /.fs/* — file system write",
+    "DELETE /.fs/* — file system delete",
+    "POST /.auth — authentication",
+    "GET /.ping — health check",
+    "POST /.shell — server shell execution",
+    "syscall APIs (asset, clientStore, codeWidget, command, datastore, event, http, mq, net, os, shell, space, system, template, yaml)"
+  ]
 }

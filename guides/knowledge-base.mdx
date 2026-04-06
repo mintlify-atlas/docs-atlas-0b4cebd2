@@ -1,0 +1,169 @@
+---
+title: "Building a knowledge base"
+description: "Organize everything you know in SilverBullet using atomic pages, bi-directional links, tags, frontmatter, and live queries — no rigid folder hierarchy required."
+---
+
+A knowledge base in SilverBullet is a web of pages that link to each other. The key insight is that you don't need to design a folder structure upfront. You write, you link, and structure emerges from the connections. Queries and Linked Mentions then let you navigate and surface that structure without maintaining it by hand.
+
+This guide walks through the core workflow: creating focused pages, linking them freely, adding structured metadata when it's useful, and querying across everything.
+
+<Steps>
+  <Step title="Create your first topic pages">
+    Open the Page Picker with `Cmd-k` / `Ctrl-k`, type a topic name, and press Enter to create the page. Start with three or four pages on topics you already know well — a programming concept, a book you've read, a project you're running.
+
+    Keep each page focused on a single topic. A page about "Rust" covers Rust. A separate page about "Ownership" covers ownership. This "atomic note" approach makes pages easy to link and reuse.
+
+    A paragraph or two is enough to start. You'll grow pages over time as you revisit them.
+  </Step>
+
+  <Step title="Link as you write">
+    As you write on one page, reference related pages using `[[double bracket]]` syntax. SilverBullet autocompletes page names as you type inside the brackets:
+
+    ```markdown
+    Rust's [[Ownership]] model prevents data races at compile time.
+    The borrow checker enforces [[Ownership]] rules at compile time,
+    making [[Memory Safety]] guarantees without a garbage collector.
+    ```
+
+    Create links even for pages that don't exist yet — SilverBullet will show them as unresolved links, and you can click through to create them later. Don't stop writing to organize; link first, organize if needed later.
+
+    <Tip>
+      You don't need to decide where a page lives in a folder hierarchy before linking to it. The link is the connection — folder structure is optional.
+    </Tip>
+  </Step>
+
+  <Step title="Discover connections via Linked Mentions">
+    Navigate to one of your linked pages (click a `[[link]]` or use the Page Picker). Scroll to the bottom of the page and look for the **Linked Mentions** section.
+
+    This section shows every page that links to the current page — connections you didn't have to create or maintain manually. Your "Ownership" page will automatically show that your "Rust" page references it.
+
+    This is how a knowledge base builds itself: write naturally on any page, link as you go, and Linked Mentions surface all the connections for free. Each page becomes a hub for everything related to its topic.
+  </Step>
+
+  <Step title="Add tags for cross-referencing">
+    When you want to categorize pages so you can query or filter them, add tags. You have two options:
+
+    **Hashtag on an empty line** — tags the entire page:
+    ```markdown
+    #concept
+    ```
+
+    **Frontmatter `tags` field** — preferred for pages with other structured data:
+    ```yaml
+    ---
+    tags: book
+    ---
+    ```
+
+    Both approaches are equivalent for querying. Use whichever fits the page's content. You can also combine them.
+  </Step>
+
+  <Step title="Add structured metadata with frontmatter">
+    YAML frontmatter at the top of a page adds queryable attributes alongside the tag. For example, a book page:
+
+    ```yaml
+    ---
+    tags: book
+    author: Italo Calvino
+    status: reading
+    year: 1972
+    ---
+    ```
+
+    Any key you define in frontmatter becomes a queryable field. There are no required keys beyond `tags` — add whatever attributes make sense for the page type.
+
+    <Info>
+      Frontmatter is the most common way to attach structured metadata to a page in SilverBullet. The `tags` field accepts a single string, a comma-separated list, or a YAML array. See the [Frontmatter](/concepts/space-and-pages) reference for all special attributes.
+    </Info>
+  </Step>
+
+  <Step title="Query your knowledge with live indexes">
+    Space Lua's integrated query syntax lets you build dynamic indexes that update automatically as you add or edit pages.
+
+    Create a "Currently Reading" page with a query that lists all book pages where `status` is `reading`:
+
+    ```lua
+    ${template.each(query[[
+      from b = tags.book
+      where b.status == "reading"
+      order by b.lastModified desc
+    ]], templates.pageItem)}
+    ```
+
+    As you update a book page's `status` from `reading` to `done`, it disappears from this list and can appear on a "Books I've Read" page instead:
+
+    ```lua
+    ${template.each(query[[
+      from b = tags.book
+      where b.status == "done"
+      order by b.year desc
+    ]], templates.pageItem)}
+    ```
+
+    You can query any tag and any frontmatter attribute you've defined. Queries render inline in the page and refresh when underlying pages change.
+  </Step>
+
+  <Step title="Build a topic index page">
+    A topic index page aggregates everything about a subject. Create a page called "Concepts" and add a query that lists every page tagged `#concept`:
+
+    ```lua
+    ${template.each(query[[
+      from c = tags.concept
+      order by c.name
+    ]], templates.pageItem)}
+    ```
+
+    For a richer index, combine multiple tags or add filters:
+
+    ```lua
+    ${template.each(query[[
+      from c = tags.concept
+      where c.domain == "programming"
+      order by c.name
+    ]], templates.pageItem)}
+    ```
+
+    You now have a self-maintaining alphabetical list of programming concepts. Add a new page tagged `#concept` with `domain: programming` in its frontmatter and it appears in this index automatically.
+  </Step>
+
+  <Step title="Embed content across pages with transclusions">
+    Use transclusion syntax to pull the content of one page directly into another. On your home (index) page, you can embed your "Currently Reading" query page inline:
+
+    ```markdown
+    ![[Currently Reading]]
+    ```
+
+    The content renders in place. If you update "Currently Reading," the transclusion reflects the change everywhere it appears.
+  </Step>
+</Steps>
+
+## Using full-text search
+
+Press `Cmd-Shift-f` / `Ctrl-Shift-f` to open full-text search. This searches across all page content in your space — not just page names. Use it to find a note when you remember the words but not the title.
+
+Full-text search and the Page Picker (`Cmd-k` / `Ctrl-k`) complement each other: use the picker when you know roughly what page you want, and full-text search when you're looking for specific text across your notes.
+
+## Organizing with folders (when you need them)
+
+You don't have to use folders, but they're available when natural groupings emerge. Folder structure in SilverBullet is just a naming convention: a page named `Books/Invisible Cities` lives in the `Books/` folder. You can use folders and links together — there's no conflict.
+
+<Note>
+  Avoid spending time designing a folder hierarchy before you have enough pages to see what groupings make sense. Links and tags work across folder boundaries; you can always reorganize later by renaming pages.
+</Note>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Daily journaling" icon="calendar" href="/guides/journaling">
+    Use journal pages to generate a timeline of activity on any topic.
+  </Card>
+  <Card title="Task management" icon="circle-check" href="/guides/task-management">
+    Track tasks across your space with queries and linked tasks.
+  </Card>
+  <Card title="People notes" icon="user" href="/guides/people-notes">
+    Apply the same patterns to contacts and relationships.
+  </Card>
+  <Card title="Templates" icon="layout-template" href="/customization/templates">
+    Create page templates to speed up note creation.
+  </Card>
+</CardGroup>

@@ -1,0 +1,166 @@
+---
+title: "Lua Integrated Query"
+description: "An SQL/LINQ-inspired query language embedded directly in Space Lua for querying objects across your space."
+---
+
+Lua Integrated Query (LIQ) is a SilverBullet-specific Lua extension that adds a convenient query syntax in a backwards-compatible way. The syntax `query[[...]]` works because in standard Lua, `[[...]]` is just an alternative string literal, so `query[[my query]]` is valid Lua equivalent to `query("my query")`. In Space Lua, it's interpreted as a full query language.
+
+## General syntax
+
+```sql
+query [[
+    from <<expression>>
+    [ where <<expression>> ]
+    [ group by <<expression>> [, ...] ]
+    [ having <<expression>> ]
+    [ order by <<sort_expression>> [asc|desc] [nulls first|last] ]
+    [ limit <<expression>> [, <<expression>>] ]
+    [ offset <<expression>> ]
+    [ select <<expression>> ]
+]]
+```
+
+Unlike SQL, LIQ clauses can be written in any order. The only required clause is `from`.
+
+## The `from` clause
+
+`from` specifies the data source. Always use explicit variable binding:
+
+```lua
+-- Recommended: explicit variable binding
+query[[from p = index.tag "page" order by p.lastModified desc limit 5]]
+
+-- Works but not recommended: implicit binding via `_`
+query[[from index.tag "page" limit 5]]
+```
+
+<Warning>
+  When using implicit binding (no `v =`), any attribute of the iterated object will shadow global variables. For example, if objects have a `table` attribute, the `table` standard library becomes inaccessible within the query. Always use explicit binding.
+</Warning>
+
+LIQ works on any Lua collection, not just index tags:
+
+```lua
+-- Sort a plain Lua table
+query[[from n = {5, 3, 1, 4, 2} order by n]]
+```
+
+## The `where` clause
+
+Filter items by a boolean expression:
+
+```lua
+-- Pages tagged #meta
+query[[from p = index.tag "page" where table.includes(p.tags, "meta")]]
+
+-- Pages whose name starts with "Journal/"
+query[[from p = index.tag "page" where p.name:startsWith("Journal/")]]
+
+-- Open tasks only
+query[[from t = index.tag "task" where not t.done]]
+```
+
+## The `order by` clause
+
+Sort by one or more expressions. Default is ascending; append `desc` for descending:
+
+```lua
+-- Most recently modified pages
+query[[from p = index.tag "page" order by p.lastModified desc limit 5]]
+
+-- Multiple sort keys
+query[[from p = index.tag "page" order by p.priority desc, p.name asc limit 10]]
+
+-- Null placement (default: nulls last for asc, nulls first for desc)
+query[[from p = index.tag "page" order by p.priority desc nulls last select p.name limit 5]]
+```
+
+You can also use a custom comparator with `using`:
+
+```lua
+query[[
+  from p = index.tag "page"
+  order by p.name using function(a, b) return #a < #b end
+  select p.name
+  limit 5
+]]
+```
+
+## The `limit` and `offset` clauses
+
+```lua
+-- First 10 results
+query[[from index.tag "page" limit 10]]
+
+-- Results 11-20
+query[[from index.tag "page" limit 10 offset 10]]
+
+-- Inline offset syntax: limit <count>, <offset>
+query[[from {1,2,3,4,5} limit 3, 1]]
+```
+
+## The `select` clause
+
+Transform each result item. If omitted, the item itself is returned:
+
+```lua
+-- Return only names
+query[[from p = index.tag "page" select p.name limit 5]]
+
+-- Return a table with selected keys
+query[[
+  from p = index.tag "page"
+  select table.select(p, "name", "lastModified")
+  limit 5
+]]
+
+-- Computed values
+query[[from n = {1, 2, 3} select n * 2]]
+```
+
+## The `group by` and `having` clauses
+
+Group results and filter on groups. Each group row has `key` and `group` fields:
+
+```lua
+-- Count pages per tag
+query[[
+  from t = index.tag "tag"
+  group by t.name
+  select { name = name, count = #group }
+  order by count desc
+  limit 10
+]]
+
+-- Only tags used more than twice
+query[[
+  from t = index.tag "tag"
+  group by t.name
+  having #group > 2
+  select { name = name, count = #group }
+]]
+```
+
+Aggregate functions available in `select` and `having`: `count()`, `sum()`, `min()`, `max()`, `avg()`, `array_agg()`.
+
+## Rendering query results
+
+Queries return a regular Lua table, so you can use them anywhere:
+
+```lua
+-- Render as a list of page links
+${template.each(query[[
+  from p = index.tag "page"
+  order by p.lastModified desc
+  limit 5
+]], templates.pageItem)}
+```
+
+```lua
+-- Use in a conditional
+${some(query[[from index.tag "task" where not _.done limit 1]]) or "No open tasks!"}
+```
+
+<Tip>
+  Pair `query[[...]]` with `template.each` and the pre-built `templates.*` functions for the most common rendering patterns. See the [Template API](/api/template) for details.
+</Tip>

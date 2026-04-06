@@ -1,0 +1,223 @@
+---
+title: "Developing plugs"
+description: "Build, test, and distribute your own SilverBullet plugs using TypeScript and the official plug template."
+---
+
+This guide walks you through creating a plug from scratch — from the initial template to distributing a finished `.plug.js` bundle.
+
+## Getting started
+
+<Steps>
+  <Step title="Clone the plug template">
+    Open the [silverbullet-plug-template](https://github.com/silverbulletmd/silverbullet-plug-template) repository on GitHub and click **Use this template** to create your own repository.
+
+    Then clone your new repo:
+
+    ```bash
+    git clone https://github.com/yourname/yourplug.git
+    cd yourplug
+    npm install
+    ```
+  </Step>
+
+  <Step title="Understand the project structure">
+    The template contains two key parts:
+
+    - **`yourplug.plug.yaml`** — the manifest file that declares your plug's functions and hooks
+    - **TypeScript source files** — the implementation of your plug's functions
+
+    Every function you want to expose to SilverBullet must be declared in the manifest.
+  </Step>
+
+  <Step title="Build the plug">
+    Compile your TypeScript source into a `.plug.js` bundle:
+
+    ```bash
+    npm run build
+    ```
+
+    This produces a self-contained bundle (e.g., `yourplug.plug.js`) that SilverBullet can load.
+  </Step>
+
+  <Step title="Load the plug in your space">
+    Copy the built bundle into the `_plug/` folder of your space:
+
+    ```bash
+    cp yourplug.plug.js ~/myspace/_plug/
+    ```
+
+    Within seconds, SilverBullet picks up the new file on both the server and in your browser — no page reload needed.
+  </Step>
+</Steps>
+
+## Plug manifest
+
+The manifest file (`yourplug.plug.yaml`) declares every function your plug exposes and specifies how SilverBullet should hook into it. A function without a manifest entry is not accessible.
+
+```yaml
+name: yourplug
+
+functions:
+  myCommand:
+    path: "./src/myplug.ts:myCommand"
+    command:
+      name: "YourPlug: My Command"
+      key: "Ctrl-Alt-m"
+
+  onPageLoad:
+    path: "./src/myplug.ts:onPageLoad"
+    events:
+      - name: editor:pageLoaded
+```
+
+### Hook types
+
+| Hook | Key | Description |
+|---|---|---|
+| Command | `command` | Registers the function as a command palette entry, with an optional keybinding |
+| Event | `events` | Calls the function when a named event fires on the event bus |
+| Cron | `cron` | Runs the function on a schedule (e.g., every minute) |
+| Code widget | `codeWidget` | Registers the function as a renderer for a fenced code block language |
+
+## Writing plug functions
+
+Plug functions are standard async TypeScript functions. Import syscalls from `@silverbulletmd/silverbullet/syscalls` to interact with SilverBullet.
+
+```typescript
+import { editor, space } from "@silverbulletmd/silverbullet/syscalls";
+
+export async function myCommand() {
+  const pageName = await editor.getCurrentPage();
+  await editor.flashNotification(`You are on: ${pageName}`);
+}
+```
+
+### Available syscall namespaces
+
+| Import | Description |
+|---|---|
+| `editor` | Read/write editor text, navigate, show dialogs and notifications |
+| `space` | List, read, write, and delete pages and files |
+| `system` | Invoke functions, list commands, reload configuration |
+| `events` | Subscribe to and emit events |
+| `datastore` | Key-value storage for structured data |
+| `clientStore` | Persist client-side state across sessions |
+| `mq` | Message queues for background processing |
+| `markdown` | Parse Markdown and traverse the AST |
+| `shell` | Run shell commands (server-side only) |
+| `asset` | Access static assets bundled with the plug |
+| `config` | Read SilverBullet configuration values |
+
+## Event system
+
+Plugs can both subscribe to and emit events on SilverBullet's event bus.
+
+### Subscribing via the manifest
+
+Declare an event hook in your manifest:
+
+```yaml
+functions:
+  onPageSaved:
+    path: "./src/myplug.ts:onPageSaved"
+    events:
+      - name: editor:pageSaved
+```
+
+Then implement the handler:
+
+```typescript
+import { editor } from "@silverbulletmd/silverbullet/syscalls";
+
+export async function onPageSaved(event: { name: string }) {
+  console.log("Page saved:", event.name);
+}
+```
+
+### Emitting events
+
+Use the `events` syscall to dispatch a custom event from inside a function:
+
+```typescript
+import { events } from "@silverbulletmd/silverbullet/syscalls";
+
+export async function triggerCustomEvent() {
+  await events.dispatch("myplugin:dataReady", { timestamp: Date.now() });
+}
+```
+
+Other plugs or Space Lua scripts can then subscribe to `myplugin:dataReady`.
+
+### Built-in events reference
+
+| Event | When it fires |
+|---|---|
+| `editor:init` | Editor has initialized |
+| `editor:pageLoaded` | A page was opened in the editor |
+| `editor:pageSaved` | A page was saved |
+| `editor:pageSaving` | A page is about to be saved |
+| `editor:pageModified` | A change was made to the document (fires in real time) |
+| `page:index` | A page changed and needs re-indexing |
+| `plugs:loaded` | All plugs have finished loading |
+| `cron:secondPassed` | One second has elapsed (useful for periodic tasks) |
+
+## Debugging
+
+Plugs run inside a browser web worker. Use your browser's built-in DevTools to debug them:
+
+1. Open **DevTools** (`F12` or `Cmd-Option-I`)
+2. Go to the **Console** tab
+3. Any `console.log()` calls inside your plug appear here
+
+<Tip>
+  You can set breakpoints in plug source files if you configure source maps in your build. The template includes source map support by default.
+</Tip>
+
+## Distribution
+
+Once your plug is ready to share, you have three distribution options:
+
+<Tabs>
+  <Tab title="GitHub (direct file)">
+    Commit the `.plug.js` bundle to your GitHub repository. Users add the following to their `PLUGS` page:
+
+    ```yaml
+    - github:yourgithubuser/yourrepo/yourplugname.plug.js
+    ```
+  </Tab>
+  <Tab title="GitHub releases">
+    Create a GitHub release and upload the `.plug.js` file as a release asset. The asset name must match your repository name (e.g., `yourrepo.plug.js`).
+
+    <Note>
+      If your repository name starts with `silverbullet-`, like `silverbullet-foo`, SilverBullet will try both `silverbullet-foo.plug.js` and `foo.plug.js` as asset names.
+    </Note>
+
+    Users add one of the following to their `PLUGS` page:
+
+    ```yaml
+    # Latest release
+    - ghr:yourgithubuser/yourrepo
+
+    # Specific release
+    - ghr:yourgithubuser/yourrepo/release-name
+    ```
+  </Tab>
+  <Tab title="Direct URL">
+    Host the `.plug.js` file on any web server. Users add the full URL to their `PLUGS` page:
+
+    ```yaml
+    - https://mydomain.com/yourplugname.plug.js
+    ```
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Plug template on GitHub" icon="github" href="https://github.com/silverbulletmd/silverbullet-plug-template">
+    Start from the official template — clone it and build your first plug.
+  </Card>
+  <Card title="Plugs overview" icon="puzzle" href="/plugs/overview">
+    Learn what plugs can do and how they fit into SilverBullet's extension model.
+  </Card>
+</CardGroup>

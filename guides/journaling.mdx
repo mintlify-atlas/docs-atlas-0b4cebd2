@@ -1,0 +1,184 @@
+---
+title: "Daily journaling"
+description: "Set up a daily journaling workflow in SilverBullet using page templates, date-named pages, and linked mentions to build a timeline of activity across every topic you care about."
+---
+
+Daily journaling in SilverBullet works by creating one page per day, then linking freely to people, projects, and concepts as you write. Those links automatically surface your journal entries on the referenced pages via Linked Mentions — so a person's page accumulates every mention of them without any manual curation.
+
+## How it works
+
+Each day's journal lives at a path like `Journal/2026-03-04`. You open it via a keyboard shortcut or command, jot down whatever happened, and use `[[wikilinks]]` to connect entries to other pages in your space. That's the full loop.
+
+The sections below walk through setting it up from scratch.
+
+<Steps>
+  <Step title="Create the journal page template">
+    Create a new page called `Library/Page Templates/Journal` (or any path you prefer) with the following content:
+
+    ```markdown
+    ---
+    command: "Journal: Today"
+    key: "Ctrl-q t"
+    suggestedName: "Journal/${os.date('%Y-%m-%d')}"
+    confirmName: false
+    tags: meta/template/page
+    openIfExists: true
+    ---
+    #journal
+
+    * |^|
+    ```
+
+    This is a [Page Template](/customization/templates) that:
+
+    - Registers a `Journal: Today` command accessible from the Command Palette
+    - Binds it to `Ctrl-q t` for quick access (`Ctrl-q`, then `t`)
+    - Generates pages named by today's date, e.g. `Journal/2026-04-06`
+    - Opens the existing page if you've already started one today (`openIfExists: true`)
+    - Tags every journal page `#journal` automatically
+    - Places the cursor at the first bullet (`|^|`)
+
+    <Tip>
+      The `suggestedName` field supports embedded Lua expressions. `os.date('%Y-%m-%d')` returns the current date in `YYYY-MM-DD` format, which keeps pages sorted chronologically in the page picker.
+    </Tip>
+  </Step>
+
+  <Step title="Add an action button (optional)">
+    For one-click access from the top bar, add the following to your `CONFIG` page:
+
+    ```lua
+    actionButton.define {
+      icon = "pen-tool",
+      priority = 3,
+      run = function()
+        editor.invokeCommand "Journal: Today"
+      end
+    }
+    ```
+
+    Then run the **System: Reload** command to activate the button.
+  </Step>
+
+  <Step title="Open today's journal and start writing">
+    Press `Ctrl-q t` or run `Journal: Today` from the Command Palette. You land on a fresh page (or today's existing page) with a bullet list ready.
+
+    Write freely. The key habit is linking as you go — use `[[double brackets]]` to reference any page that matters:
+
+    ```markdown
+    * Reviewed the Q2 roadmap with [[Alice]] and [[Bob]]
+      * Agreed to prioritize the API redesign
+      * [[Alice]] will draft the migration plan
+    * Started reading [[Invisible Cities]]
+    * Fixed a bug in the [[Login Flow]]
+      * Root cause was a missing null check in the session handler
+    ```
+
+    Each `[[link]]` connects that bullet (and its sub-items) to the referenced page.
+  </Step>
+
+  <Step title="Watch topic pages build themselves">
+    Navigate to Alice's page. Scroll to the bottom. The **Linked Mentions** section shows every journal entry that mentions her — with full context and sub-items included.
+
+    Tomorrow's journal entry mentioning Alice will appear there automatically. Over time, each topic page accumulates a reverse-chronological log of every day you referenced it. You don't maintain this log; it builds itself from your daily writing.
+
+    This works for any type of page: people, projects, concepts, books, open questions. Your journal becomes the connective tissue between everything else in your space.
+  </Step>
+
+  <Step title="Query your journal for insights">
+    Use Space Lua's integrated query syntax to pull data from your journal pages. For example, place this on your home page to show the seven most recent journal entries:
+
+    ```lua
+    ${template.each(query[[
+      from j = tags.journal
+      where j.tag == "page"
+      order by j.name desc
+      limit 7
+    ]], templates.pageItem)}
+    ```
+
+    This query selects pages tagged `#journal`, orders them newest-first by name (which works because of the `YYYY-MM-DD` naming convention), and renders each as a linked page item.
+  </Step>
+</Steps>
+
+## Adding structure with frontmatter
+
+Plain bullet notes are enough to start, but you can add YAML frontmatter to each journal page to capture structured data alongside free-form writing. Because the journal template creates the page, you can embed default frontmatter directly in the template:
+
+```markdown
+---
+command: "Journal: Today"
+key: "Ctrl-q t"
+suggestedName: "Journal/${os.date('%Y-%m-%d')}"
+confirmName: false
+tags: meta/template/page
+openIfExists: true
+frontmatter: |
+  tags: journal
+  mood: ""
+  energy: ""
+---
+#journal
+
+* |^|
+```
+
+A journal page created from this template will start with:
+
+```yaml
+---
+tags: journal
+mood: ""
+energy: ""
+---
+```
+
+Fill in `mood` and `energy` each day, and those values become queryable. For example, to find all high-energy days:
+
+```lua
+${template.each(query[[
+  from j = tags.journal
+  where j.energy == "high"
+  order by j.name desc
+]], templates.pageItem)}
+```
+
+## Linking tasks from journal to the global task list
+
+Tasks written in journal entries are indexed automatically — no extra configuration needed. A task like:
+
+```markdown
+* [ ] Follow up with [[Alice]] about the migration plan
+```
+
+appears in any space-wide task query. To show all open tasks from journal pages on a dashboard page:
+
+```lua
+${template.each(query[[
+  from t = tags.task
+  where not t.done and t.page:match("^Journal/")
+  order by t.lastModified desc
+]], templates.taskItem)}
+```
+
+The `t.page:match("^Journal/")` filter restricts results to tasks that originate from pages inside the `Journal/` folder.
+
+<Note>
+  Tasks written in journal entries are the same objects as tasks anywhere else in your space. Checking one off in the journal also marks it done on your dashboard, and vice versa.
+</Note>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Knowledge base" icon="book-open" href="/guides/knowledge-base">
+    Organize pages with tags, frontmatter, and queries.
+  </Card>
+  <Card title="Task management" icon="circle-check" href="/guides/task-management">
+    Track projects and tasks across your whole space.
+  </Card>
+  <Card title="People notes" icon="user" href="/guides/people-notes">
+    Keep a personal CRM with person pages and meeting notes.
+  </Card>
+  <Card title="Templates" icon="layout-template" href="/customization/templates">
+    Learn more about page templates and slash templates.
+  </Card>
+</CardGroup>

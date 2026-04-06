@@ -1,0 +1,212 @@
+---
+title: "Markdown"
+description: "SilverBullet uses CommonMark Markdown with a set of extensions for wiki links, tags, admonitions, live preview, and more."
+---
+
+## CommonMark plus extensions
+
+SilverBullet's editor is built on [CommonMark](https://commonmark.org/) — the standardized Markdown specification — with a set of extensions that add wiki links, hashtags, admonitions, fenced code widgets, and Lua expressions.
+
+Because the underlying files are plain `.md` text, your content is readable and editable in any text editor. The extensions SilverBullet adds are all optional: you can write plain CommonMark and everything still works.
+
+## Live preview
+
+SilverBullet uses a **live preview** editor that renders Markdown formatting inline as you type, without switching to a separate preview pane. Bold text appears bold, links appear as clickable text, and `${...}` Lua expressions render as live widgets — all while you edit.
+
+To see the raw Markdown source of any formatted element, move your cursor inside it with the keyboard, or **Alt-click** (Option-click on Mac) on it. To disable live preview entirely and see raw Markdown at all times, run the `Editor: Toggle Markdown Syntax Rendering` command.
+
+## Basic syntax
+
+```markdown
+# Heading 1
+## Heading 2
+### Heading 3
+
+**bold text**
+_italic text_
+~~strikethrough~~
+==highlighted text==
+
+> This is a blockquote.
+
+`inline code`
+
+[External link](https://silverbullet.md)
+```
+
+Lists use `*` or `-` for unordered items and numbers for ordered lists:
+
+```markdown
+* Unordered item
+* Another item
+  * Nested item
+
+1. First
+2. Second
+3. Third
+```
+
+Fenced code blocks use triple backticks with an optional language tag for syntax highlighting:
+
+````markdown
+```javascript
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+```
+````
+
+SilverBullet provides syntax highlighting for JavaScript, TypeScript, Python, Rust, Go, SQL, YAML, HTML, CSS, and many more languages.
+
+## Wiki links
+
+The `[[Page Name]]` syntax creates a link to another page in your space. As you type `[[`, SilverBullet auto-completes page names.
+
+```markdown
+[[Page Name]]
+[[Page Name|Display text]]
+[[projects/q1-review]]
+[[Page Name#Section heading]]
+```
+
+You can also link to a specific line and column:
+
+```markdown
+[[CHANGELOG@L12c42]]
+```
+
+## Hashtags
+
+The `#tag` syntax assigns a tag to a page, item, task, or paragraph depending on where it appears. Tags are used to categorize objects and query them later.
+
+```markdown
+#project
+
+- [ ] Fix the bug #high-priority
+* Meeting notes #meeting #q1
+```
+
+Hashtag scope rules:
+
+- Alone on a line → tags the **page**
+- Inside a list item → tags the **item**
+- Inside a task → tags the **task**
+- Inside a paragraph → tags the **paragraph**
+
+Tag names can contain letters, dashes, and underscores. To use spaces or special characters, wrap the tag name in angle brackets: `#<my tag>`.
+
+## Admonitions
+
+SilverBullet renders callout blocks using GitHub-style admonition syntax. A blockquote whose first line is a bold keyword becomes a styled callout:
+
+```markdown
+> **note** This is a note callout.
+
+> **warning** Double-check before proceeding.
+
+> **danger** This action cannot be undone.
+
+> **success** The operation completed.
+```
+
+These render with distinct icons and accent colors in live preview. You can define custom admonition styles using a `space-style` fenced code block.
+
+## Fenced code blocks
+
+Beyond syntax-highlighted code, fenced code blocks with special language tags activate built-in SilverBullet features:
+
+<Tabs>
+  <Tab title="space-lua">
+    Defines Lua functions, event handlers, and configuration that run in your space:
+
+    ````markdown
+    ```space-lua
+    function greet(name)
+      return "Hello, " .. name
+    end
+    ```
+    ````
+  </Tab>
+  <Tab title="space-style">
+    Adds custom CSS that styles your space:
+
+    ````markdown
+    ```space-style
+    .cm-header-1 { color: #427393; }
+    ```
+    ````
+  </Tab>
+  <Tab title="#hashtag">
+    Creates a queryable `data` object from the block's content:
+
+    ````markdown
+    ```#contact
+    name: Alice
+    email: alice@example.com
+    ```
+    ````
+  </Tab>
+</Tabs>
+
+## Slash commands
+
+Type `/` anywhere in a page to open the slash command menu. Slash commands insert formatted content, trigger templates, run built-in actions, and more. Start typing after `/` to filter the list.
+
+## Auto-complete
+
+SilverBullet provides auto-complete for:
+
+- **Page names** — triggered by typing `[[`
+- **Hashtags** — triggered by typing `#`
+- **Frontmatter attributes** — triggered inside a YAML frontmatter block
+- **Slash commands** — triggered by typing `/`
+- **Template variables** — triggered inside template expressions
+
+## Space Lua expressions
+
+Wrap any Lua expression in `${...}` to render it inline as a live widget. Queries, templates, and dynamic values all use this syntax:
+
+```markdown
+Page count: ${#query[[from index.tag "page"]]}
+
+Last modified: ${os.date("%Y-%m-%d")}
+```
+
+The underlying code is hidden until you move your cursor into the expression.
+
+## Extensions reference
+
+SilverBullet supports these extensions on top of CommonMark:
+
+| Extension | Description |
+|---|---|
+| Wiki links | `[[Page Name]]` internal links with auto-complete |
+| Frontmatter | YAML metadata block at the top of a page |
+| Inline attributes | `[key: value]` metadata attached to items, tasks, paragraphs |
+| Fenced code blocks | Special language tags for Lua, styles, and data blocks |
+| Admonitions | GitHub-style `> **note**` callout blocks |
+| Hashtags | `#tag` syntax for categorizing objects |
+| Space Lua expressions | `${...}` for inline dynamic content |
+| Tables | GFM-style pipe tables |
+| Task lists | `- [ ]` checkbox syntax |
+| Highlight | `==text==` highlight syntax |
+| Subscript / superscript | `~sub~` and `^super^` syntax |
+| Footnotes | `[^1]` footnote references |
+| Automatic URL linking | Bare URLs rendered as links |
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Objects and tags" icon="tags" href="/concepts/objects-and-tags">
+    Learn how SilverBullet indexes data extracted from your pages.
+  </Card>
+  <Card title="Tasks and outlines" icon="list-checks" href="/concepts/tasks-and-outlines">
+    Track tasks and organize content with outlines.
+  </Card>
+  <Card title="Space Lua" icon="code" href="/space-lua/overview">
+    Write Lua scripts to extend and automate your space.
+  </Card>
+  <Card title="Space and pages" icon="folder" href="/concepts/space-and-pages">
+    Understand the file structure behind your space.
+  </Card>
+</CardGroup>
